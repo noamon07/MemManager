@@ -1,4 +1,4 @@
-#include "Interface/api.h"
+#include "Interface/mem_manager.h"
 #include "strategies/slab.h"   /* Your Slab Allocator internal header */
 #include "Interface/handle.h" /* Your Handle Table internal header */
 
@@ -17,6 +17,11 @@ int mm_init() {
     
     initialized = 1;
     return 1;
+}
+
+void mm_destroy()
+{
+    
 }
 
 Handle mm_malloc(size_t size) {

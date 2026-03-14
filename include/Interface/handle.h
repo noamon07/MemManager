@@ -3,12 +3,9 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include "Interface/mem_manager.h"
 #define INVALID_INDEX ((uint32_t)-1)
 
-typedef struct {
-    unsigned int index;
-    unsigned int generation;
-} Handle;
 
 // Using a union to make the free list implementation cleaner.
 typedef struct {
