@@ -2,6 +2,7 @@
 #include "strategies/slab.h" 
 #include "Arenas/handle.h" 
 #include "Arenas/huge.h"
+#include "Arenas/nursery.h"
 
 #define PAGE_SIZE (4096)
 
@@ -27,7 +28,7 @@ alloc_type_t mm_type_selector(uint32_t size)
     {
         return ALLOC_TYPE_HUGE;
     }
-    return ALLOC_TYPE_ERROR;
+    return ALLOC_TYPE_NURSERY;
 }
 
 Handle mm_malloc(uint32_t size) {
@@ -41,11 +42,12 @@ Handle mm_malloc(uint32_t size) {
     void* ptr = NULL;
     switch (type)
     {
+        case ALLOC_TYPE_NURSERY:
+            ptr = mm_malloc_nursery(size);
+            break;
         case ALLOC_TYPE_TLSF:
             break;
         case ALLOC_TYPE_SLAB:
-            break;
-        case ALLOC_TYPE_BUMP:
             break;
         case ALLOC_TYPE_HUGE:
             ptr = mm_malloc_huge(size);
@@ -72,11 +74,12 @@ void mm_free(Handle handle) {
     HandleEntry* entry = handle_table_get_entry(&table, handle);
     switch (entry->stratigy_id)
     {
+        case ALLOC_TYPE_NURSERY:
+            mm_free_nursery(entry->data.ptr);
+            break;
         case ALLOC_TYPE_TLSF:
             break;
         case ALLOC_TYPE_SLAB:
-            break;
-        case ALLOC_TYPE_BUMP:
             break;
         case ALLOC_TYPE_HUGE:
             mm_free_huge(entry->data.ptr, entry->size);
@@ -101,11 +104,12 @@ Handle mm_realloc(Handle handle, uint32_t new_size)
     void* ptr = NULL;
     switch (type)
     {
+        case ALLOC_TYPE_NURSERY:
+            ptr = mm_realloc_nursery(ptr_old,entry->size,new_size);
+            break;
         case ALLOC_TYPE_TLSF:
             break;
         case ALLOC_TYPE_SLAB:
-            break;
-        case ALLOC_TYPE_BUMP:
             break;
         case ALLOC_TYPE_HUGE:
             ptr = mm_realloc_huge(ptr_old,entry->size,new_size);
@@ -133,11 +137,12 @@ Handle mm_calloc(uint32_t size)
     void* ptr = NULL;
     switch (type)
     {
+        case ALLOC_TYPE_NURSERY:
+            ptr = mm_calloc_nursery(size);
+            break;
         case ALLOC_TYPE_TLSF:
             break;
         case ALLOC_TYPE_SLAB:
-            break;
-        case ALLOC_TYPE_BUMP:
             break;
         case ALLOC_TYPE_HUGE:
             ptr = mm_calloc_huge(size);

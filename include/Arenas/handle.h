@@ -7,9 +7,9 @@
 
 typedef enum {
     ALLOC_TYPE_ERROR,
+    ALLOC_TYPE_NURSERY,
     ALLOC_TYPE_TLSF,
     ALLOC_TYPE_SLAB,
-    ALLOC_TYPE_BUMP,
     ALLOC_TYPE_HUGE,
     ALLOC_TYPE_MAX,
 }alloc_type_t;
