@@ -1,141 +1,177 @@
 #include "Arenas/nursery.h"
-#include <sys/mman.h> 
-#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+#define NURSERY_START_SIZE (4096)
 
-/* Helper function to get strictly aligned memory from the OS.
- * If block_size is 1MB, this guarantees the address ends in twenty 0s in binary,
- * which is mandatory for the O(1) free() pointer masking trick to work.
- */
-static void* mmap_aligned(size_t size, size_t alignment) {
-    /* Over-allocate to ensure an aligned chunk exists somewhere inside */
-    size_t total_size = size + alignment;
-    void* raw = mmap(NULL, total_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-    if (raw == MAP_FAILED) return NULL;
+static char initialized = 0;
+typedef struct {
+    uint32_t size:29,
+             is_allocated:1,
+             before_alloc:1,
+             unused:1;
+} BlockHeader;
 
-    uintptr_t raw_addr = (uintptr_t)raw;
-    uintptr_t offset = alignment - (raw_addr % alignment);
-    if (offset == alignment) offset = 0; /* Already perfectly aligned */
-
-    void* aligned_addr = (void*)(raw_addr + offset);
-
-    /* Unmap the unused waste memory before and after our aligned block */
-    if (offset > 0) {
-        munmap(raw, offset);
-    }
-    size_t tail_size = total_size - (offset + size);
-    if (tail_size > 0) {
-        munmap((char*)aligned_addr + size, tail_size);
-    }
-
-    return aligned_addr;
+static Nursery nursery;
+int mm_nursery_grow(uint32_t requested_size);
+int mm_nursery_init()
+{
+    if(initialized)
+        return 0;
+    memset(&nursery,0,sizeof(Nursery));
+    nursery.mem = calloc(NURSERY_START_SIZE,1);
+    if(!nursery.mem)
+        return 0;
+    BlockHeader* header = (BlockHeader*)nursery.mem;
+    header->size = NURSERY_START_SIZE;
+    header->is_allocated = 0;
+    header->before_alloc = 1;
+    nursery.mem_size = NURSERY_START_SIZE;
+    initialized = 1;
+    return 1;
 }
+void mm_nursery_destroy()
+{
+    if(!initialized)
+        return;
+    if(nursery.mem)
+        free(nursery.mem);
+    memset(&nursery,0,sizeof(Nursery));
+    initialized = 0;
+}
+void mm_nursery_reset()
+{
 
-static NurseryNode* create_nursery_node(size_t requested_size) {
-    /* 1. Request strictly aligned memory. 
-     * Note: requested_size should ideally be a power of 2 (e.g., 1MB, 2MB)
-     */
-    void* os_memory = mmap_aligned(requested_size, requested_size);
-                           
-    if (os_memory == NULL) {
-        return NULL; 
-    }
-
-    /* 2. Place metadata at the perfectly aligned start of the block */
-    NurseryNode* node = (NurseryNode*)os_memory;
-    
-    size_t node_size = sizeof(NurseryNode);
-    void* bump_memory = (char*)os_memory + node_size;
-    size_t bump_capacity = requested_size - node_size;
-
-    /* NOTE: Standardized to bump_init based on your original code */
-    if(!bump_init(bump_memory, bump_capacity))
+}
+void* mm_malloc_nursery(uint32_t size)
+{
+    mm_nursery_init();
+    if(!initialized)
         return NULL;
-    node->allocator = bump_memory;
-    
-    node->next = NULL;
-    node->total_mapped_size = requested_size; 
-
-    return node;
+    if(size+sizeof(BlockHeader)>=nursery.mem_size-nursery.cur_index)
+    {
+        if(!mm_nursery_grow(size+sizeof(BlockHeader)))
+            return NULL;
+    }
+    BlockHeader* to_alloc = (BlockHeader*)&nursery.mem[nursery.cur_index];
+    to_alloc->before_alloc = 1;
+    to_alloc->is_allocated = 1;
+    to_alloc->size = size+sizeof(BlockHeader);
+    nursery.cur_index += to_alloc->size;
+    BlockHeader* new_cur = (BlockHeader*)&nursery.mem[nursery.cur_index];
+    new_cur->before_alloc = 1;
+    new_cur->is_allocated = 0;
+    new_cur->size = nursery.mem_size-nursery.cur_index;
+    return to_alloc+1;
 }
 
-void nursery_init(Nursery* nursery, size_t default_block_size) {
-    nursery->default_block_size = default_block_size;
-    NurseryNode* initial_node = create_nursery_node(default_block_size);
-    
-    nursery->head = initial_node;
-    nursery->active = initial_node;
+void mm_nursery_merge_before(BlockHeader** _header)
+{
+    BlockHeader* header = *_header;
+    if(header->before_alloc) return;
+
+    uint32_t prev_size = *(uint32_t*)header-1;
+    BlockHeader* prev_header = (BlockHeader*)((char*)header-prev_size);
+    prev_header->size += header->size;
+    *_header = prev_header;
+}
+void mm_nursery_merge_after(BlockHeader* header)
+{
+    BlockHeader* next = (BlockHeader*)((char*)header+header->size);
+    if(next->is_allocated) return;
+    header->size += next->size;
 }
 
-void nursery_destroy(Nursery* nursery) {
-    NurseryNode* current = nursery->head;
-    
-    while (current != NULL) {
-        NurseryNode* next_node = current->next;
-        size_t size_to_unmap = current->total_mapped_size;
-        
-        bump_destroy(current->allocator); 
-        munmap(current, size_to_unmap);
-        
-        current = next_node;
-    }
-    
-    nursery->head = NULL;
-    nursery->active = NULL;
+void mm_free_nursery(void* ptr)
+{
+    if(!initialized)
+        return;
+    BlockHeader* to_free = (BlockHeader*)ptr-1;
+    to_free->is_allocated = 0;
+    BlockHeader* next = (BlockHeader*)((char*)to_free+to_free->size);
+    next->before_alloc = 0;
+    mm_nursery_merge_before(&to_free);
+    mm_nursery_merge_after(to_free);
+    uint32_t* end = (uint32_t*)((char*)to_free+to_free->size);
+    end--;
+    *end = to_free->size;
+    uint32_t to_free_index = (char*)to_free-(char*)nursery.mem;
+    if(nursery.cur_index< to_free_index + to_free->size)
+        nursery.cur_index = to_free_index;
 }
+void mm_trim_block(BlockHeader* header, uint32_t new_size)
+{
+    if(header->size-new_size < sizeof(BlockHeader)+sizeof(uint32_t)) return;
 
-void nursery_reset(Nursery* nursery) {
-    NurseryNode* current = nursery->head;
-    
-    while (current != NULL) {
-        bump_reset(current->allocator);
-        current = current->next;
-    }
-    nursery->active = nursery->head;
+    BlockHeader* split_header = (BlockHeader*)((char*)header+new_size);
+    split_header->before_alloc = 1;
+    split_header->is_allocated = 1;
+    split_header->size = header->size-new_size;
+    header->size = new_size;
+    mm_free_nursery(split_header);
 }
-
-void* nursery_allocate_slow_path(Nursery* nursery, size_t size) {
-    NurseryNode* active = nursery->active;
-
-    /* Note: If the user asks for a size larger than the entire block capacity,
-     * do NOT put it in the nursery. Route it directly to the TLSF backend instead.
-     */
-    if (size > nursery->default_block_size - sizeof(NurseryNode)) {
-        return NULL; /* Or route to large object allocator */
+void* mm_realloc_nursery(void* ptr, uint32_t ptr_size, uint32_t new_size)
+{
+    if(!initialized)
+        return NULL;
+    new_size+=sizeof(BlockHeader);
+    uint32_t before_size = 0, next_size = 0;
+    BlockHeader* header = (BlockHeader*)ptr-1;
+    if(new_size <= header->size)
+    {
+        mm_trim_block(header,new_size);
+        return ptr;
     }
-
-    /* Scenario 1: Reusing an existing empty block from the chain */
-    if (active != NULL && active->next != NULL) {
-        nursery->active = active->next;
-        void* ptr = bump_alloc(nursery->active->allocator, size);
-        if (ptr != NULL) return ptr;
+    BlockHeader* next = (BlockHeader*)((char*)header+header->size);
+    next_size = next->size;
+    if(header->size+next_size >= new_size)
+    {
+        mm_nursery_merge_after(header);
+        mm_trim_block(header,new_size);
+        return ptr;
     }
-
-    /* Scenario 2: End of the chain, need to ask OS for a new block */
-    NurseryNode* new_node = create_nursery_node(nursery->default_block_size);
-    if (new_node == NULL) return NULL; 
-
-    /* Safely append to the end of the chain */
-    if (active != NULL) {
-        active->next = new_node;
-    } else {
-        /* Failsafe if the nursery is somehow completely empty */
-        nursery->head = new_node;
+    if(!header->before_alloc)
+    {
+        before_size = *((uint32_t*)header-1);
+        if(before_size+header->size+next_size >= new_size)
+        {
+            mm_nursery_merge_before(&header);
+            mm_nursery_merge_after(header);
+            mm_trim_block(header,new_size);
+            memmove(header+1,ptr,ptr_size);
+            ptr=header+1;
+            return ptr;
+        }
     }
-    
-    nursery->active = new_node;
-    return bump_alloc(nursery->active->allocator, size);
+    void* new_ptr = mm_malloc_nursery(new_size);
+    if(!new_ptr)
+        return NULL;
+    memmove(new_ptr,ptr,ptr_size);
+    mm_free_nursery(ptr);
+    return new_ptr;
 }
-
-void* nursery_allocate(Nursery* nursery, size_t size) {
-    if (nursery->active == NULL) return NULL;
-
-    /* Fast path */
-    void* ptr = bump_alloc(nursery->active->allocator, size); // Standardized name
-    
-    if (ptr != NULL) {
-        return ptr; 
+void* mm_calloc_nursery(uint32_t size)
+{
+    void* ptr = mm_malloc_nursery(size);
+    if(!ptr)
+        return NULL;
+    memset(ptr,0,size);
+    return ptr;
+}
+int mm_nursery_grow(uint32_t requested_size)
+{
+    requested_size+=nursery.mem_size;
+    uint32_t calc_size = nursery.mem_size;
+    while(calc_size <= requested_size)
+    {
+        calc_size*=2;
     }
-
-    /* Slow path */
-    return nursery_allocate_slow_path(nursery, size);
+    void* new_mem = realloc(nursery.mem,calc_size);
+    if(!new_mem)
+        return 0;
+    nursery.mem = new_mem;
+    nursery.mem_size = calc_size;
+    BlockHeader * cur_header = (BlockHeader*)&nursery.mem[nursery.cur_index];
+    cur_header->size=nursery.mem_size-nursery.cur_index;
+    cur_header->is_allocated = 0;
+    return 1;
 }

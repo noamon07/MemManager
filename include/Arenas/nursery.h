@@ -5,38 +5,19 @@
 #include "strategies/bump.h"
 
 
-typedef struct NurseryNode {
-    BumpAllocator* allocator;   /* Pointer to your actual bump allocator state */
-    struct NurseryNode* next;   /* Next node in the chain */
-    size_t total_mapped_size;
-} NurseryNode;
 
 typedef struct Nursery {
-    NurseryNode* head;          /* The first bump allocator in the chain */
-    NurseryNode* active;        /* The bump allocator currently being used */
-    size_t default_block_size;  /* Size to pass when creating a new bump allocator */
+    uint8_t* mem;
+    uint32_t mem_size;
+    uint32_t cur_index;
 } Nursery;
 
 /* Initialization and teardown */
-void nursery_init(Nursery* nursery, size_t default_block_size);
-void nursery_destroy(Nursery* nursery);
-
-/* * Clears the nursery after a GC pass.
- * Instead of freeing memory, this should just iterate through the chain 
- * and call your bump_reset() function on each allocator, then point 
- * the 'active' node back to the 'head'.
- */
-void nursery_reset(Nursery* nursery);
-
-/* Internal slow path: handles expanding the chain when the active block is full */
-void* nursery_allocate_slow_path(Nursery* nursery, size_t size);
-
-/*
- * The main allocation function.
- * We keep this static inline to maintain that O(1) performance.
- * * NOTE: This assumes your bump_allocate function returns NULL 
- * when it doesn't have enough space left.
- */
-void* nursery_allocate(Nursery* nursery, size_t size);
+void mm_nursery_destroy();
+void mm_nursery_reset();
+void* mm_malloc_nursery(uint32_t size);
+void mm_free_nursery(void* ptr);
+void* mm_realloc_nursery(void* ptr, uint32_t ptr_size, uint32_t new_size);
+void* mm_calloc_nursery(uint32_t size);
 
 #endif
