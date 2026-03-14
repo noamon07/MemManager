@@ -1,0 +1,60 @@
+# Default configuration
+CONFIG ?= debug
+
+# Compiler
+CC := gcc
+
+# --- PATHS ---
+# Adding -Iinclude lets you use #include <header.h> instead of relative paths
+COMMON_CFLAGS := -Wall -Wextra -Iinclude -D_strdup=strdup
+LDFLAGS := -lm
+
+# --- Configuration Specifics ---
+ifeq ($(CONFIG), debug)
+    OUTDIR := out/debug
+    CFLAGS := $(COMMON_CFLAGS) -g -O0
+    TARGET_NAME := main_debug
+else
+    OUTDIR := out/release
+    CFLAGS := $(COMMON_CFLAGS) -O2 -DNDEBUG
+    TARGET_NAME := main
+endif
+
+# --- RECURSIVE SOURCE DISCOVERY ---
+# This finds all .c files in src/ and its subfolders (intelligence, decision, etc.)
+SRCS := $(shell find src strategies -name '*.c')
+
+# This keeps the folder structure inside your /out/obj directory
+OBJDIR := $(OUTDIR)/obj
+OBJS := $(SRCS:%.c=$(OBJDIR)/%.o)
+TARGET := $(OUTDIR)/$(TARGET_NAME)
+
+# --- TARGETS ---
+.PHONY: all clean debug release
+
+all: $(TARGET)
+
+debug:
+	@$(MAKE) all CONFIG=debug
+
+release:
+	@$(MAKE) all CONFIG=release
+
+$(TARGET): $(OBJS)
+	@mkdir -p $(dir $@)
+	@echo "Linking target: $@"
+	@$(CC) $^ -o $@ $(LDFLAGS)
+
+# The % pattern here now handles paths like src/intelligence/telemetry.o
+$(OBJDIR)/%.o: %.c
+	@mkdir -p $(dir $@)
+	@echo "Compiling: $< -> $@"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+clean:
+	@echo "Cleaning up..."
+	@rm -rf out
+
+run: all
+	@echo "Running $(TARGET)..."
+	@./$(TARGET)
