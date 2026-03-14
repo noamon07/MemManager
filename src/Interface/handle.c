@@ -1,4 +1,4 @@
-#include "InterfaceSafetyLayer/handle.h"
+#include "Interface/handle.h"
 
 // We'll define our own sentinel to avoid magic numbers
 

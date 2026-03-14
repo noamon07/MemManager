@@ -1,6 +1,6 @@
-#include "InterfaceSafetyLayer/api.h"
+#include "Interface/api.h"
 #include "strategies/slab.h"   /* Your Slab Allocator internal header */
-#include "InterfaceSafetyLayer/handle.h" /* Your Handle Table internal header */
+#include "Interface/handle.h" /* Your Handle Table internal header */
 
 /* Static globals keep these hidden from the user (Encapsulation) */
 static int initialized = 0;
