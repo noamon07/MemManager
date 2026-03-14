@@ -1,6 +1,6 @@
 #ifndef HUGE_H
 #define HUGE_H
-#include "Interface/handle.h"
+#include "Arenas/handle.h"
 
 Handle mm_malloc_huge(size_t size);
 void mm_free_huge(Handle handle);

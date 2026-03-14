@@ -1,6 +1,6 @@
 #include "Interface/mem_manager.h"
 #include "strategies/slab.h"   /* Your Slab Allocator internal header */
-#include "Interface/handle.h" /* Your Handle Table internal header */
+#include "Arenas/handle.h" /* Your Handle Table internal header */
 
 /* Static globals keep these hidden from the user (Encapsulation) */
 static int initialized = 0;
