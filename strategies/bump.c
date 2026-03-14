@@ -1,4 +1,4 @@
-#include "bump.h"
+#include "strategies/bump.h"
 #include <sys/mman.h>
 #include <string.h>
 #include <unistd.h>
@@ -32,6 +32,10 @@ int bump_init(BumpAllocator *a, size_t data_size) {
     a->total_mmap_size = total_needed;
 
     return 1;
+}
+void bump_reset(BumpAllocator *a)
+{
+    (void)a;
 }
 
 void* bump_alloc(BumpAllocator *a, size_t size) {

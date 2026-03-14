@@ -7,7 +7,7 @@
 #include "handle.h"
 
 // Optional: Manual init if the user wants to control startup
-int mm_init(void);
+int mm_init();
 
 // The core API: Returns a Handle instead of a raw pointer
 Handle mm_malloc(size_t size);

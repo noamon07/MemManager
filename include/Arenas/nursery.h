@@ -2,7 +2,7 @@
 #define NURSERY_H
 
 #include <stdint.h>
-#include "bump.h"
+#include "strategies/bump.h"
 
 
 typedef struct NurseryNode {

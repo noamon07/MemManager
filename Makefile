@@ -6,7 +6,7 @@ CC := gcc
 
 # --- PATHS ---
 # Adding -Iinclude lets you use #include <header.h> instead of relative paths
-COMMON_CFLAGS := -Wall -Wextra -Iinclude -D_strdup=strdup
+COMMON_CFLAGS := -Wall -Werror -Wextra -Iinclude -D_strdup=strdup
 LDFLAGS := -lm
 
 # --- Configuration Specifics ---
@@ -41,13 +41,13 @@ release:
 	@$(MAKE) all CONFIG=release
 
 $(TARGET): $(OBJS)
-	@mkdir -p $(dir $@)
+	@mkdir -p $(shell dirname $@)
 	@echo "Linking target: $@"
 	@$(CC) $^ -o $@ $(LDFLAGS)
 
 # The % pattern here now handles paths like src/intelligence/telemetry.o
 $(OBJDIR)/%.o: %.c
-	@mkdir -p $(dir $@)
+	@mkdir -p $(shell dirname $@)
 	@echo "Compiling: $< -> $@"
 	@$(CC) $(CFLAGS) -c $< -o $@
 

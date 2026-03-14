@@ -1,4 +1,4 @@
-#include "handle.h"
+#include "InterfaceSafetyLayer/handle.h"
 
 // We'll define our own sentinel to avoid magic numbers
 
@@ -100,7 +100,7 @@ int handle_table_grow(HandleTable *table, void* new_memory, uint32_t added_size)
     for (uint32_t i = old_size; i < new_size; ++i) {
         new_entries[i].generation = 1;
         new_entries[i].is_allocated = 0;
-        new_entries
+        //new_entries
         
         if (i == new_size - 1) {
             // Last entry points to the OLD free list head

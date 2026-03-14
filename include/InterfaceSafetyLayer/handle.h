@@ -36,6 +36,6 @@ void handle_table_destroy(HandleTable *table);
 Handle handle_table_new(HandleTable *table, void *ptr, char stratigy_id);
 void *handle_table_get(HandleTable *table, Handle handle);
 void handle_table_free(HandleTable *table, Handle handle);
-int handle_table_grow(HandleTable *table, void* new_memory, size_t added_size);
+int handle_table_grow(HandleTable *table, void* new_memory, uint32_t added_size);
 
 #endif // HAND

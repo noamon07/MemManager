@@ -1,4 +1,4 @@
-#include "nursery.h"
+#include "Arenas/nursery.h"
 #include <sys/mman.h> 
 #include <stdint.h>
 
@@ -48,7 +48,9 @@ static NurseryNode* create_nursery_node(size_t requested_size) {
     size_t bump_capacity = requested_size - node_size;
 
     /* NOTE: Standardized to bump_init based on your original code */
-    node->allocator = bump_init(bump_memory, bump_capacity);
+    if(!bump_init(bump_memory, bump_capacity))
+        return NULL;
+    node->allocator = bump_memory;
     
     node->next = NULL;
     node->total_mapped_size = requested_size; 
@@ -104,7 +106,7 @@ void* nursery_allocate_slow_path(Nursery* nursery, size_t size) {
     /* Scenario 1: Reusing an existing empty block from the chain */
     if (active != NULL && active->next != NULL) {
         nursery->active = active->next;
-        void* ptr = bump_allocate(nursery->active->allocator, size);
+        void* ptr = bump_alloc(nursery->active->allocator, size);
         if (ptr != NULL) return ptr;
     }
 
@@ -121,14 +123,14 @@ void* nursery_allocate_slow_path(Nursery* nursery, size_t size) {
     }
     
     nursery->active = new_node;
-    return bump_allocate(nursery->active->allocator, size);
+    return bump_alloc(nursery->active->allocator, size);
 }
 
 void* nursery_allocate(Nursery* nursery, size_t size) {
     if (nursery->active == NULL) return NULL;
 
     /* Fast path */
-    void* ptr = bump_allocate(nursery->active->allocator, size); // Standardized name
+    void* ptr = bump_alloc(nursery->active->allocator, size); // Standardized name
     
     if (ptr != NULL) {
         return ptr; 

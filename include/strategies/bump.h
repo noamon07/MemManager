@@ -20,8 +20,10 @@ typedef struct {
 
 int bump_init(BumpAllocator *a, size_t data_size);
 void* bump_alloc(BumpAllocator *a, size_t size);
-void  bump_mark_alive(BumpAllocator *a, void *ptr, size_t size);
+void bump_mark_alive(BumpAllocator *a, void *ptr, size_t size);
 void* bump_move_live(BumpAllocator *a, void *dest_heap);
-void  bump_destroy(BumpAllocator *a);
+void bump_destroy(BumpAllocator *a);
+void bump_reset(BumpAllocator *a);
+
 
 #endif
