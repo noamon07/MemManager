@@ -1,19 +1,17 @@
 #include "Interface/mem_manager.h"
-#include "strategies/slab.h"   /* Your Slab Allocator internal header */
-#include "Arenas/handle.h" /* Your Handle Table internal header */
+#include "strategies/slab.h" 
+#include "Arenas/handle.h" 
+#include "Arenas/huge.h"
 
-/* Static globals keep these hidden from the user (Encapsulation) */
+#define PAGE_SIZE (4096)
+
 static int initialized = 0;
 static HandleTable table;
 
 int mm_init() {
-    //SlabAllocator slab;
     if (initialized) return 0;
 
-    /* 1. Initialize your Slab/Buddy system here */
-    //slab_init(&slab,sizeof(HandleEntry));
-    /* 2. Initialize the Handle Table the number of entries is the size of the slab allocator 1 page/size of an entry*/
-    //handle_table_init(&table,slab.heap_start, 4096/sizeof(HandleEntry));
+    handle_table_init(&table, PAGE_SIZE/sizeof(HandleEntry));
     
     initialized = 1;
     return 1;
@@ -23,42 +21,133 @@ void mm_destroy()
 {
     
 }
+alloc_type_t mm_type_selector(uint32_t size)
+{
+    if(size >= PAGE_SIZE)
+    {
+        return ALLOC_TYPE_HUGE;
+    }
+    return ALLOC_TYPE_ERROR;
+}
 
-Handle mm_malloc(size_t size) {
-    (void)size;
+Handle mm_malloc(uint32_t size) {
     Handle h = {INVALID_INDEX, 0};
 
-    /* Lazy initialization check */
     if (!initialized) {
         if (!mm_init()) return h;
     }
 
-    /* 1. Allocate raw memory from your Slab Allocator */
-    //void* raw_ptr = slab_alloc(size);
-    //if (!raw_ptr) return h;
-
-    /* 2. Register that pointer in the Handle Table to get a Handle */
-    //h = handle_table_new(&table, raw_ptr,"S");
-
+    alloc_type_t type = mm_type_selector(size);
+    void* ptr = NULL;
+    switch (type)
+    {
+        case ALLOC_TYPE_TLSF:
+            break;
+        case ALLOC_TYPE_SLAB:
+            break;
+        case ALLOC_TYPE_BUMP:
+            break;
+        case ALLOC_TYPE_HUGE:
+            ptr = mm_malloc_huge(size);
+            break;
+        default:
+            break;
+    }
+    if(ptr)
+    {
+        h = handle_table_new(&table, ptr, size,type);
+    }
     return h;
 }
 
 void* mm_get_ptr(Handle handle) {
     if (!initialized) return NULL;
 
-    /* Direct lookup in the table */
-    return handle_table_get(&table, handle);
+    return handle_table_get_ptr(&table, handle);
 }
 
 void mm_free(Handle handle) {
     if (!initialized) return;
 
-    /* 1. Find the pointer to free it from the Slab */
-    void* ptr = handle_table_get(&table, handle);
-    if (ptr) {
-        //slab_free(ptr);
+    HandleEntry* entry = handle_table_get_entry(&table, handle);
+    switch (entry->stratigy_id)
+    {
+        case ALLOC_TYPE_TLSF:
+            break;
+        case ALLOC_TYPE_SLAB:
+            break;
+        case ALLOC_TYPE_BUMP:
+            break;
+        case ALLOC_TYPE_HUGE:
+            mm_free_huge(entry->data.ptr, entry->size);
+            break;
+        default:
+            break;
     }
 
-    /* 2. Invalidate the handle in the table */
     handle_table_free(&table, handle);
+}
+Handle mm_realloc(Handle handle, uint32_t new_size)
+{
+    Handle h = {INVALID_INDEX, 0};
+
+    if (!initialized) {
+        if (!mm_init()) return h;
+    }
+
+    HandleEntry* entry = handle_table_get_entry(&table, handle);
+    alloc_type_t type = entry->stratigy_id;
+    void* ptr_old= entry->data.ptr;
+    void* ptr = NULL;
+    switch (type)
+    {
+        case ALLOC_TYPE_TLSF:
+            break;
+        case ALLOC_TYPE_SLAB:
+            break;
+        case ALLOC_TYPE_BUMP:
+            break;
+        case ALLOC_TYPE_HUGE:
+            ptr = mm_realloc_huge(ptr_old,entry->size,new_size);
+            break;
+        default:
+            break;
+    }
+    if(ptr)
+    {
+        entry->data.ptr = ptr;
+        entry->size = new_size;
+        h= handle;
+    }
+    return h;
+}
+Handle mm_calloc(uint32_t size)
+{
+    Handle h = {INVALID_INDEX, 0};
+
+    if (!initialized) {
+        if (!mm_init()) return h;
+    }
+
+    alloc_type_t type = mm_type_selector(size);
+    void* ptr = NULL;
+    switch (type)
+    {
+        case ALLOC_TYPE_TLSF:
+            break;
+        case ALLOC_TYPE_SLAB:
+            break;
+        case ALLOC_TYPE_BUMP:
+            break;
+        case ALLOC_TYPE_HUGE:
+            ptr = mm_calloc_huge(size);
+            break;
+        default:
+            break;
+    }
+    if(ptr)
+    {
+        h = handle_table_new(&table, ptr, size,type);
+    }
+    return h;
 }

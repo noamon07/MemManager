@@ -55,6 +55,9 @@ clean:
 	@echo "Cleaning up..."
 	@rm -rf out
 
+rebuild: clean all
+	@echo "Rebuilding..."
+
 run: all
 	@echo "Running $(TARGET)..."
 	@./$(TARGET)
