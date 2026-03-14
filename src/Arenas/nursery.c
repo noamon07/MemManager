@@ -1,6 +1,7 @@
 #include "Arenas/nursery.h"
 #include <stdlib.h>
 #include <string.h>
+#include "Arenas/handle.h"
 #define NURSERY_START_SIZE (4096)
 
 static char initialized = 0;
@@ -9,10 +10,13 @@ typedef struct {
              is_allocated:1,
              before_alloc:1,
              unused:1;
+    uint32_t entry_index;
 } BlockHeader;
 
 static Nursery nursery;
 int mm_nursery_grow(uint32_t requested_size);
+void mm_nursery_merge_before(BlockHeader** _header);
+void mm_trim_block(BlockHeader* header, uint32_t new_size);
 int mm_nursery_init()
 {
     if(initialized)
@@ -40,9 +44,34 @@ void mm_nursery_destroy()
 }
 void mm_nursery_reset()
 {
-
+    if(!initialized)
+        return;
+    // Reset the bump pointer to the beginning of the nursery.
+    nursery.cur_index = 0;
+    // Mark the entire nursery as a single, large, free block.
+    BlockHeader* header = (BlockHeader*)nursery.mem;
+    header->size = nursery.mem_size;
+    header->is_allocated = 0;
 }
-void* mm_malloc_nursery(uint32_t size)
+void mm_nursery_defrag()
+{
+    BlockHeader* header;
+    uint32_t offset = 0;
+    for(;offset<nursery.mem_size;offset+=header->size)
+    {
+        header = (BlockHeader*)&nursery.mem[offset];
+        if(header->is_allocated && !header->before_alloc)
+        {
+            uint32_t size = header->size;
+            BlockHeader* header_backup = header;
+            mm_nursery_merge_before(&header);
+            memmove(header+1,header_backup+1,size-sizeof(BlockHeader));
+            mm_trim_block(header,size);
+        }   
+    }
+}
+
+void* mm_malloc_nursery(uint32_t size, uint32_t** entry_index)
 {
     mm_nursery_init();
     if(!initialized)
@@ -61,6 +90,7 @@ void* mm_malloc_nursery(uint32_t size)
     new_cur->before_alloc = 1;
     new_cur->is_allocated = 0;
     new_cur->size = nursery.mem_size-nursery.cur_index;
+    *entry_index = (uint32_t*)&to_alloc->entry_index;
     return to_alloc+1;
 }
 
@@ -72,6 +102,9 @@ void mm_nursery_merge_before(BlockHeader** _header)
     uint32_t prev_size = *(uint32_t*)header-1;
     BlockHeader* prev_header = (BlockHeader*)((char*)header-prev_size);
     prev_header->size += header->size;
+    prev_header->entry_index = header->entry_index;
+    HandleEntry* entry = handle_table_get_entry_by_index(prev_header->entry_index);
+    entry->data.ptr = prev_header+1;
     *_header = prev_header;
 }
 void mm_nursery_merge_after(BlockHeader* header)
@@ -109,7 +142,7 @@ void mm_trim_block(BlockHeader* header, uint32_t new_size)
     header->size = new_size;
     mm_free_nursery(split_header);
 }
-void* mm_realloc_nursery(void* ptr, uint32_t ptr_size, uint32_t new_size)
+void* mm_realloc_nursery(void* ptr, uint32_t ptr_size, uint32_t new_size, uint32_t** entry_index)
 {
     if(!initialized)
         return NULL;
@@ -119,6 +152,7 @@ void* mm_realloc_nursery(void* ptr, uint32_t ptr_size, uint32_t new_size)
     if(new_size <= header->size)
     {
         mm_trim_block(header,new_size);
+        *entry_index = (uint32_t*)&((BlockHeader*)ptr-1)->entry_index;
         return ptr;
     }
     BlockHeader* next = (BlockHeader*)((char*)header+header->size);
@@ -127,6 +161,7 @@ void* mm_realloc_nursery(void* ptr, uint32_t ptr_size, uint32_t new_size)
     {
         mm_nursery_merge_after(header);
         mm_trim_block(header,new_size);
+        *entry_index = (uint32_t*)&((BlockHeader*)ptr-1)->entry_index;
         return ptr;
     }
     if(!header->before_alloc)
@@ -139,19 +174,20 @@ void* mm_realloc_nursery(void* ptr, uint32_t ptr_size, uint32_t new_size)
             mm_trim_block(header,new_size);
             memmove(header+1,ptr,ptr_size);
             ptr=header+1;
+            *entry_index = (uint32_t*)&((BlockHeader*)ptr-1)->entry_index;
             return ptr;
         }
     }
-    void* new_ptr = mm_malloc_nursery(new_size);
+    void* new_ptr = mm_malloc_nursery(new_size, entry_index);
     if(!new_ptr)
         return NULL;
     memmove(new_ptr,ptr,ptr_size);
     mm_free_nursery(ptr);
     return new_ptr;
 }
-void* mm_calloc_nursery(uint32_t size)
+void* mm_calloc_nursery(uint32_t size, uint32_t** entry_index)
 {
-    void* ptr = mm_malloc_nursery(size);
+    void* ptr = mm_malloc_nursery(size, entry_index);
     if(!ptr)
         return NULL;
     memset(ptr,0,size);

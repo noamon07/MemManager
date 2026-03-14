@@ -37,12 +37,13 @@ typedef struct {
     uint32_t head; // Head of the free list
 } HandleTable;
 
-void handle_table_init(HandleTable *table, uint32_t initial_capacity);
-void handle_table_destroy(HandleTable *table);
-Handle handle_table_new(HandleTable *table, void *ptr, uint32_t ptr_size, alloc_type_t stratigy_id);
-void *handle_table_get_ptr(HandleTable *table, Handle handle);
-HandleEntry *handle_table_get_entry(HandleTable *table, Handle handle);
-void handle_table_free(HandleTable *table, Handle handle);
-int handle_table_grow(HandleTable *table, uint32_t added_size);
+void handle_table_init(uint32_t initial_capacity);
+void handle_table_destroy();
+Handle handle_table_new(void *ptr, uint32_t ptr_size, alloc_type_t stratigy_id);
+void *handle_table_get_ptr(Handle handle);
+HandleEntry *handle_table_get_entry_by_index(uint32_t index);
+HandleEntry *handle_table_get_entry(Handle handle);
+void handle_table_free(Handle handle);
+int handle_table_grow(uint32_t added_size);
 
 #endif // HAND

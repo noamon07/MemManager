@@ -15,9 +15,9 @@ typedef struct Nursery {
 /* Initialization and teardown */
 void mm_nursery_destroy();
 void mm_nursery_reset();
-void* mm_malloc_nursery(uint32_t size);
+void* mm_malloc_nursery(uint32_t size, uint32_t** entry_index);
 void mm_free_nursery(void* ptr);
-void* mm_realloc_nursery(void* ptr, uint32_t ptr_size, uint32_t new_size);
-void* mm_calloc_nursery(uint32_t size);
+void* mm_realloc_nursery(void* ptr, uint32_t ptr_size, uint32_t new_size, uint32_t** entry_index);
+void* mm_calloc_nursery(uint32_t size, uint32_t** entry_index);
 
 #endif

@@ -7,12 +7,11 @@
 #define PAGE_SIZE (4096)
 
 static int initialized = 0;
-static HandleTable table;
 
 int mm_init() {
     if (initialized) return 0;
 
-    handle_table_init(&table, PAGE_SIZE/sizeof(HandleEntry));
+    handle_table_init(PAGE_SIZE/sizeof(HandleEntry));
     
     initialized = 1;
     return 1;
@@ -40,10 +39,11 @@ Handle mm_malloc(uint32_t size) {
 
     alloc_type_t type = mm_type_selector(size);
     void* ptr = NULL;
+    uint32_t* entry_index = NULL;
     switch (type)
     {
         case ALLOC_TYPE_NURSERY:
-            ptr = mm_malloc_nursery(size);
+            ptr = mm_malloc_nursery(size,&entry_index);
             break;
         case ALLOC_TYPE_TLSF:
             break;
@@ -57,7 +57,8 @@ Handle mm_malloc(uint32_t size) {
     }
     if(ptr)
     {
-        h = handle_table_new(&table, ptr, size,type);
+        h = handle_table_new(ptr, size,type);
+        *entry_index = h.index;
     }
     return h;
 }
@@ -65,13 +66,13 @@ Handle mm_malloc(uint32_t size) {
 void* mm_get_ptr(Handle handle) {
     if (!initialized) return NULL;
 
-    return handle_table_get_ptr(&table, handle);
+    return handle_table_get_ptr(handle);
 }
 
 void mm_free(Handle handle) {
     if (!initialized) return;
 
-    HandleEntry* entry = handle_table_get_entry(&table, handle);
+    HandleEntry* entry = handle_table_get_entry(handle);
     switch (entry->stratigy_id)
     {
         case ALLOC_TYPE_NURSERY:
@@ -88,7 +89,7 @@ void mm_free(Handle handle) {
             break;
     }
 
-    handle_table_free(&table, handle);
+    handle_table_free(handle);
 }
 Handle mm_realloc(Handle handle, uint32_t new_size)
 {
@@ -98,14 +99,15 @@ Handle mm_realloc(Handle handle, uint32_t new_size)
         if (!mm_init()) return h;
     }
 
-    HandleEntry* entry = handle_table_get_entry(&table, handle);
+    HandleEntry* entry = handle_table_get_entry(handle);
     alloc_type_t type = entry->stratigy_id;
     void* ptr_old= entry->data.ptr;
     void* ptr = NULL;
+    uint32_t* entry_index = NULL;
     switch (type)
     {
         case ALLOC_TYPE_NURSERY:
-            ptr = mm_realloc_nursery(ptr_old,entry->size,new_size);
+            ptr = mm_realloc_nursery(ptr_old,entry->size,new_size,&entry_index);
             break;
         case ALLOC_TYPE_TLSF:
             break;
@@ -122,6 +124,7 @@ Handle mm_realloc(Handle handle, uint32_t new_size)
         entry->data.ptr = ptr;
         entry->size = new_size;
         h= handle;
+        *entry_index = h.index;
     }
     return h;
 }
@@ -135,10 +138,11 @@ Handle mm_calloc(uint32_t size)
 
     alloc_type_t type = mm_type_selector(size);
     void* ptr = NULL;
+    uint32_t* entry_index = NULL;
     switch (type)
     {
         case ALLOC_TYPE_NURSERY:
-            ptr = mm_calloc_nursery(size);
+            ptr = mm_calloc_nursery(size,&entry_index);
             break;
         case ALLOC_TYPE_TLSF:
             break;
@@ -152,7 +156,8 @@ Handle mm_calloc(uint32_t size)
     }
     if(ptr)
     {
-        h = handle_table_new(&table, ptr, size,type);
+        h = handle_table_new(ptr, size,type);
+        *entry_index = h.index;
     }
     return h;
 }
