@@ -98,11 +98,12 @@ uint32_t mm_malloc_nursery(uint32_t size, uint32_t** entry_index)
     size = ALIGN(size);
     if(size>=nursery.mem_size-nursery.cur_index)
     {
-        char grow_flag = 0;
-        if((nursery.cur_index-nursery.alloc_memory)< size)
-            if(mm_nursery_grow(size))
-                grow_flag = 1;
-        if(!grow_flag)
+        if((nursery.mem_size-nursery.alloc_memory)< size)
+        {
+            if(!mm_nursery_grow(size))
+                return INVALID_NURSERY_INDEX;
+        }
+        else
             mm_nursery_defrag();
     }
     BlockHeader* to_alloc = (BlockHeader*)&nursery.mem[nursery.cur_index];
@@ -133,6 +134,11 @@ void mm_nursery_merge_before(BlockHeader** _header)
     {
         HandleEntry* entry = handle_table_get_entry_by_index(prev_header->entry_index);
         entry->data.data_ptr.data_offset = GET_INDEX(prev_header);
+
+        prev_header->is_allocated = 1;
+        prev_header->generation = header->generation;
+
+        nursery.alloc_memory += prev_size;
     }
     *_header = prev_header;
 }
@@ -140,7 +146,15 @@ void mm_nursery_merge_after(BlockHeader* header)
 {
     BlockHeader* next = (BlockHeader*)((char*)header+HEADER_SIZE_TO_SIZE(header->size));
     if(next->is_allocated) return;
+    if (header->is_allocated) {
+        nursery.alloc_memory += HEADER_SIZE_TO_SIZE(next->size);
+    }
     header->size += next->size;
+    BlockHeader* after_merged = (BlockHeader*)((char*)header + HEADER_SIZE_TO_SIZE(header->size));
+    
+    if ((char*)after_merged < (char*)nursery.mem + nursery.mem_size) {
+        after_merged->before_alloc = header->is_allocated;
+    }
 }
 
 void mm_free_nursery(data_pos data)
@@ -163,7 +177,7 @@ void mm_free_nursery(data_pos data)
     end--;
     *end = HEADER_SIZE_TO_SIZE(to_free->size);
     uint32_t to_free_index = (char*)to_free-(char*)nursery.mem;
-    if(nursery.cur_index< to_free_index + HEADER_SIZE_TO_SIZE(to_free->size))
+    if(nursery.cur_index<= to_free_index + HEADER_SIZE_TO_SIZE(to_free->size))
         nursery.cur_index = to_free_index;
 }
 void mm_trim_block(BlockHeader* header, uint32_t new_size)
