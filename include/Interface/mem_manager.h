@@ -8,7 +8,6 @@ typedef struct {
 } Handle;
 
 #define INVALID_INDEX ((uint32_t)-1)
-#define MEM_MANAGER_VALID(H) ((H).index != INVALID_INDEX)
 
 // Optional: Manual init if the user wants to control startup
 void mm_destroy();

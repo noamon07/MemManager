@@ -288,3 +288,8 @@ void* mm_nursery_get(HandleEntry* entry)
         return NULL;
     return mm_nursery_get_by_index(entry->data.data_ptr.data_offset);
 }
+
+Nursery* mm_get_nursery_instance(void)
+{
+    return &nursery;
+}

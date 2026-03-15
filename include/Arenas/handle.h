@@ -52,5 +52,6 @@ HandleEntry *handle_table_get_entry_by_index(uint32_t index);
 HandleEntry *handle_table_get_entry(Handle handle);
 void handle_table_free(Handle handle);
 int handle_table_grow(uint32_t added_size);
+HandleTable *mm_get_handle_table_instance();
 
 #endif // HAND

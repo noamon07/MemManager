@@ -139,3 +139,10 @@ int handle_table_grow(uint32_t added_entries) {
     table.head = old_size;
     return 0;
 }
+
+HandleTable *mm_get_handle_table_instance()
+{
+    if(!initialized)
+        return NULL;
+    return &table;
+}
