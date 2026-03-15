@@ -16,9 +16,16 @@ typedef enum {
 
 typedef struct HandleEntry HandleEntry;
 
+typedef union
+{
+    void *ptr; // Points to the user's data
+    uint32_t data_offset; // Index of the next free entry in the list
+} data_pos;
+
+
 struct HandleEntry {
     union {
-        void *ptr; // Points to the user's data
+        data_pos data_ptr; // Points to the user's data
         uint32_t next; // Index of the next free entry in the list
     } data;
     uint32_t generation;
@@ -39,7 +46,7 @@ typedef struct {
 
 void handle_table_init(uint32_t initial_capacity);
 void handle_table_destroy();
-Handle handle_table_new(void *ptr, uint32_t ptr_size, alloc_type_t stratigy_id);
+Handle handle_table_new(data_pos data, uint32_t ptr_size, alloc_type_t stratigy_id);
 void *handle_table_get_ptr(Handle handle);
 HandleEntry *handle_table_get_entry_by_index(uint32_t index);
 HandleEntry *handle_table_get_entry(Handle handle);

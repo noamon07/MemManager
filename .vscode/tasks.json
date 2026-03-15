@@ -8,6 +8,7 @@
             "args": [
                 "-g",
                 "${workspaceFolder}/src/main.c",
+                // FIXME: Add your memory manager implementation files here for linking
                 "-o",
                 "${workspaceFolder}/mem_app"
             ],
@@ -18,6 +19,29 @@
                 "$gcc"
             ],
             "group": "build"
+        },
+        {
+            "type": "shell",
+            "label": "build and run nursery tests",
+            "command": "/usr/bin/gcc",
+            "args": [
+                "-g",
+                "-I${workspaceFolder}/include",
+                "${workspaceFolder}/tests/test_nursery.c",
+                "${workspaceFolder}/src/Arenas/nursery.c", // Assuming implementation path
+                "-o",
+                "${workspaceFolder}/tests/test_nursery_runner",
+                "&&",
+                "${workspaceFolder}/tests/test_nursery_runner"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": "test",
+            "presentation": { "reveal": "always", "panel": "new" }
         }
     ]
 }

@@ -38,27 +38,31 @@ Handle mm_malloc(uint32_t size) {
     }
 
     alloc_type_t type = mm_type_selector(size);
-    void* ptr = NULL;
+    data_pos data;
     uint32_t* entry_index = NULL;
     switch (type)
     {
         case ALLOC_TYPE_NURSERY:
-            ptr = mm_malloc_nursery(size,&entry_index);
+            data.data_offset = mm_malloc_nursery(size,&entry_index);
+            if(data.data_offset != INVALID_NURSERY_INDEX)
+            {
+                h = handle_table_new(data, size,type);
+                *entry_index = h.index;
+            }
             break;
         case ALLOC_TYPE_TLSF:
             break;
         case ALLOC_TYPE_SLAB:
             break;
         case ALLOC_TYPE_HUGE:
-            ptr = mm_malloc_huge(size);
+            data.ptr = mm_malloc_huge(size);
+            if(data.ptr)
+            {
+                h = handle_table_new(data, size,type);
+            }
             break;
         default:
             break;
-    }
-    if(ptr)
-    {
-        h = handle_table_new(ptr, size,type);
-        *entry_index = h.index;
     }
     return h;
 }
@@ -76,14 +80,14 @@ void mm_free(Handle handle) {
     switch (entry->stratigy_id)
     {
         case ALLOC_TYPE_NURSERY:
-            mm_free_nursery(entry->data.ptr);
+            mm_free_nursery(entry->data.data_ptr);
             break;
         case ALLOC_TYPE_TLSF:
             break;
         case ALLOC_TYPE_SLAB:
             break;
         case ALLOC_TYPE_HUGE:
-            mm_free_huge(entry->data.ptr, entry->size);
+            mm_free_huge(entry->data.data_ptr, entry->size);
             break;
         default:
             break;
@@ -101,35 +105,40 @@ Handle mm_realloc(Handle handle, uint32_t new_size)
 
     HandleEntry* entry = handle_table_get_entry(handle);
     alloc_type_t type = entry->stratigy_id;
-    void* ptr_old= entry->data.ptr;
-    void* ptr = NULL;
+    data_pos data_old= entry->data.data_ptr;
+    data_pos data;
     uint32_t* entry_index = NULL;
     switch (type)
     {
         case ALLOC_TYPE_NURSERY:
-            ptr = mm_realloc_nursery(ptr_old,entry->size,new_size,&entry_index);
+            data.data_offset = mm_realloc_nursery(data_old,entry->size,new_size,&entry_index);
+            if(data.data_offset != INVALID_NURSERY_INDEX)
+            {
+                entry->data.data_ptr = data;
+                entry->size = new_size;
+                *entry_index = handle.index;
+                h = handle;
+            }
             break;
         case ALLOC_TYPE_TLSF:
             break;
         case ALLOC_TYPE_SLAB:
             break;
         case ALLOC_TYPE_HUGE:
-            ptr = mm_realloc_huge(ptr_old,entry->size,new_size);
+            data.ptr = mm_realloc_huge(data_old,entry->size,new_size);
+            if(data.ptr)
+            {
+                entry->data.data_ptr = data;
+                entry->size = new_size;
+                h = handle;
+            }
             break;
         default:
             break;
     }
-    if(ptr)
-    {
-        entry->data.ptr = ptr;
-        entry->size = new_size;
-        h= handle;
-        *entry_index = h.index;
-    }
     return h;
 }
-Handle mm_calloc(uint32_t size)
-{
+Handle mm_calloc(uint32_t size) {
     Handle h = {INVALID_INDEX, 0};
 
     if (!initialized) {
@@ -137,27 +146,31 @@ Handle mm_calloc(uint32_t size)
     }
 
     alloc_type_t type = mm_type_selector(size);
-    void* ptr = NULL;
+    data_pos data;
     uint32_t* entry_index = NULL;
     switch (type)
     {
         case ALLOC_TYPE_NURSERY:
-            ptr = mm_calloc_nursery(size,&entry_index);
+            data.data_offset = mm_calloc_nursery(size,&entry_index);
+            if(data.data_offset != INVALID_NURSERY_INDEX)
+            {
+                h = handle_table_new(data, size,type);
+                *entry_index = h.index;
+            }
             break;
         case ALLOC_TYPE_TLSF:
             break;
         case ALLOC_TYPE_SLAB:
             break;
         case ALLOC_TYPE_HUGE:
-            ptr = mm_calloc_huge(size);
+            data.ptr = mm_calloc_huge(size);
+            if(data.ptr)
+            {
+                h = handle_table_new(data, size,type);
+            }
             break;
         default:
             break;
-    }
-    if(ptr)
-    {
-        h = handle_table_new(ptr, size,type);
-        *entry_index = h.index;
     }
     return h;
 }

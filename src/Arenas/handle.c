@@ -1,4 +1,6 @@
 #include "Arenas/handle.h"
+#include "Arenas/nursery.h"
+#include "Arenas/huge.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -36,7 +38,7 @@ void handle_table_destroy() {
     }
 }
 
-Handle handle_table_new(void *ptr, uint32_t ptr_size, alloc_type_t stratigy_id){
+Handle handle_table_new(data_pos data, uint32_t ptr_size, alloc_type_t stratigy_id){
     Handle invalid_handle = {INVALID_INDEX, 0};
     if (!initialized || table.head == INVALID_INDEX || stratigy_id <= ALLOC_TYPE_ERROR || stratigy_id >= ALLOC_TYPE_MAX){
         return invalid_handle;
@@ -49,7 +51,7 @@ Handle handle_table_new(void *ptr, uint32_t ptr_size, alloc_type_t stratigy_id){
     table.head = entry->data.next;
     entry->size = ptr_size;
     entry->is_allocated = 1;
-    entry->data.ptr = ptr;
+    entry->data.data_ptr = data;
     entry->stratigy_id = stratigy_id;
 
     return (Handle){ index, entry->generation };
@@ -60,9 +62,24 @@ void *handle_table_get_ptr(Handle handle) {
     if (!entry) {
         return NULL;
     }
-
-    return entry->data.ptr;
+    switch (entry->stratigy_id)
+    {
+        case ALLOC_TYPE_NURSERY:
+            return mm_nursery_get(entry);
+            break;
+        case ALLOC_TYPE_TLSF:
+            break;
+        case ALLOC_TYPE_SLAB:
+            break;
+        case ALLOC_TYPE_HUGE:
+            return mm_huge_get(entry);
+            break;
+        default:
+            break;
+    }
+    return NULL;
 }
+
 HandleEntry *handle_table_get_entry_by_index(uint32_t index)
 {
     if (!initialized || index >= table.size) {

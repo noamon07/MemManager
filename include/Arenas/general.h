@@ -3,6 +3,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include "Arenas/handle.h"
 
 /* --- Configuration Macros --- */
 
@@ -82,7 +83,7 @@ allocator_t* allocator_init(void* memory_pool, size_t pool_size);
  * 1. Creates a slab (if the size is requested frequently enough).
  * 2. Falls back to the TLSF backend for a direct allocation.
  */
-void* allocator_malloc(allocator_t* alloc, size_t size);
+void* mm_general_alloc(size_t size, alloc_type_t* type);
 
 /**
  * Frees the memory pointed to by 'ptr'.
