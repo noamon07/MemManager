@@ -45,6 +45,8 @@ static General general;
 static char initialized = 0;
 void mm_general_remove_block(uint32_t fl, uint32_t sl, FreeBlockHeader* block);
 void mm_general_split_block(FreeBlockHeader* block, uint32_t size);
+void* mm_general_get(HandleEntry* entry);
+void* mm_general_get_by_index(uint32_t index);
 
 int count_leading_zeros(uint32_t n) {
     // Counts the number of zeros from the most significant bit (MSB) to the first set (1) bit.
@@ -222,10 +224,26 @@ void mm_general_split_block(FreeBlockHeader* block, uint32_t size)
 }
 void mm_free_general(data_pos data);
 uint32_t mm_realloc_general(data_pos data, uint32_t ptr_size, uint32_t new_size, uint32_t** entry_index);
-uint32_t mm_calloc_general(uint32_t size, uint32_t** entry_index);
+uint32_t mm_calloc_general(uint32_t size, uint32_t** entry_index)
+{
+    uint32_t index = mm_malloc_general(size, entry_index);
+    if(index!=INVALID_GENERAL_INDEX)
+    {
+        void* ptr = mm_general_get_by_index(index);
+        memset(ptr,0,size);
+    }
+    return index;
+}
+void* mm_general_get_by_index(uint32_t index)
+{
+    if (index == INVALID_GENERAL_INDEX)
+        return NULL;
+    return &general.mem[index+sizeof(BlockHeader)];
+}
 void* mm_general_get(HandleEntry* entry)
 {
-    (void)entry;
-    return NULL;
+    if (entry->stratigy_id!=ALLOC_TYPE_GENERAL)
+        return NULL;
+    return mm_general_get_by_index(entry->data.data_ptr.data_offset);
 }
 General* mm_get_general_instance(void);
