@@ -6,7 +6,7 @@ CC := gcc
 
 # --- PATHS ---
 # Adding -Iinclude lets you use #include <header.h> instead of relative paths
-COMMON_CFLAGS := -Wall -Werror -Wextra -Iinclude -D_strdup=strdup
+COMMON_CFLAGS := -Wall -Werror -Wextra -Iinclude -Itests -D_strdup=strdup
 LDFLAGS := -lm
 
 # --- Configuration Specifics ---
@@ -22,7 +22,7 @@ endif
 
 # --- RECURSIVE SOURCE DISCOVERY ---
 # This finds all .c files in src/ and its subfolders (intelligence, decision, etc.)
-SRCS := $(shell find src strategies -name '*.c')
+SRCS := $(shell find src strategies tests -name '*.c')
 
 # This keeps the folder structure inside your /out/obj directory
 OBJDIR := $(OUTDIR)/obj

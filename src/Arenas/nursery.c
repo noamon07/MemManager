@@ -44,6 +44,8 @@ int mm_nursery_init()
     header->is_allocated = 0;
     header->before_alloc = 1;
     nursery.mem_size = NURSERY_START_SIZE;
+    uint32_t* footer = (uint32_t*)(nursery.mem + NURSERY_START_SIZE - sizeof(uint32_t));
+    *footer = NURSERY_START_SIZE;
     initialized = 1;
     return 1;
 }
@@ -71,7 +73,7 @@ void mm_nursery_defrag()
             }
             else
             {
-                nursury_promotion(handle_table_get_entry_by_index(header->entry_index),HEADER_SIZE_TO_SIZE(header->size));
+                nursury_promotion(header->entry_index,HEADER_SIZE_TO_SIZE(header->size));
             }
             
         }

@@ -2,4 +2,4 @@
 
 
 
-void nursury_promotion(HandleEntry* entry, uint32_t ptr_size);
+void nursury_promotion(uint32_t entry_index, uint32_t ptr_size);

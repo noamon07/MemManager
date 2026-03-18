@@ -50,7 +50,7 @@ Handle mm_malloc(uint32_t size) {
                 *entry_index = h.index;
             }
             break;
-        case ALLOC_TYPE_TLSF:
+        case ALLOC_TYPE_GENERAL:
             break;
         case ALLOC_TYPE_SLAB:
             break;
@@ -82,7 +82,7 @@ void mm_free(Handle handle) {
         case ALLOC_TYPE_NURSERY:
             mm_free_nursery(entry->data.data_ptr);
             break;
-        case ALLOC_TYPE_TLSF:
+        case ALLOC_TYPE_GENERAL:
             break;
         case ALLOC_TYPE_SLAB:
             break;
@@ -120,7 +120,7 @@ Handle mm_realloc(Handle handle, uint32_t new_size)
                 h = handle;
             }
             break;
-        case ALLOC_TYPE_TLSF:
+        case ALLOC_TYPE_GENERAL:
             break;
         case ALLOC_TYPE_SLAB:
             break;
@@ -158,7 +158,7 @@ Handle mm_calloc(uint32_t size) {
                 *entry_index = h.index;
             }
             break;
-        case ALLOC_TYPE_TLSF:
+        case ALLOC_TYPE_GENERAL:
             break;
         case ALLOC_TYPE_SLAB:
             break;

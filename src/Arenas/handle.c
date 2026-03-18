@@ -67,7 +67,7 @@ void *handle_table_get_ptr(Handle handle) {
         case ALLOC_TYPE_NURSERY:
             return mm_nursery_get(entry);
             break;
-        case ALLOC_TYPE_TLSF:
+        case ALLOC_TYPE_GENERAL:
             break;
         case ALLOC_TYPE_SLAB:
             break;
