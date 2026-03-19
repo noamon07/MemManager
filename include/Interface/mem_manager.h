@@ -3,11 +3,11 @@
 #include <stdint.h>
 
 typedef struct {
-    uint32_t index;
-    uint32_t generation;
+    uint32_t index:24,
+             generation:8;
 } Handle;
 
-#define INVALID_INDEX ((uint32_t)-1)
+#define INVALID_INDEX ((1U << 24) - 1)
 
 // Optional: Manual init if the user wants to control startup
 void mm_destroy();
