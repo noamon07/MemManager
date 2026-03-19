@@ -1,54 +1,43 @@
-#ifndef BUMP_H
-#define BUMP_H
+#ifndef BUMP_ALLOCATOR_H
+#define BUMP_ALLOCATOR_H
 
 #include <stdint.h>
-#include "Arenas/handle.h"
+#include "Arenas/arena.h"
 
-#define INVALID_BUMP_INDEX ((uint32_t)-1)
-
-/* * Every arena's custom header MUST start with these exact fields.
- * This allows bump.c to merge blocks without knowing your custom data.
- * You can use the 'custom_flags' for your generations!
+/* 
+ * Callback triggered during sliding compaction.
+ * header: The header of the block currently being processed.
+ * new_offset: The index where this block is about to be moved to.
+ * 
+ * Return 1 to MOVE and KEEP the block in this arena.
+ * Return 0 to DROP the block (e.g., it was promoted elsewhere or destroyed).
  */
+typedef int (*bump_defrag_cb)(void* arena_context, BaseHeader* header, uint32_t new_offset);
+
 typedef struct {
-    uint32_t size:28,
-             is_allocated:1,
-             before_alloc:1,
-             custom_flags:2; 
-    uint32_t entry_index;
-} BaseHeader;
-
-typedef struct BumpAllocator BumpAllocator;
-
-/* The caller provides their own logic for defragging/promoting */
-typedef void (*DefragFunction)(BumpAllocator* allocator);
-
-struct BumpAllocator {
     uint8_t* mem;
     uint32_t mem_size;
     uint32_t cur_index;
     uint32_t alloc_memory;
     
-    /* Configured by whoever uses the allocator */
-    uint32_t header_size;
-    DefragFunction defrag_logic;
-};
+    bump_defrag_cb defrag_cb;
+    void* arena_context; /* Pointer back to the parent Nursery or Long-Lived struct */
+} BumpAllocator;
 
-/* Initialization and teardown */
-int mm_bump_init(BumpAllocator* allocator, uint32_t start_size, uint32_t header_size, DefragFunction defrag_logic);
-void mm_bump_destroy(BumpAllocator* allocator);
 
-/* Core Allocation API */
-uint32_t mm_malloc_bump(BumpAllocator* allocator, uint32_t size, uint32_t** entry_index);
-uint32_t mm_calloc_bump(BumpAllocator* allocator, uint32_t size, uint32_t** entry_index);
-uint32_t mm_realloc_bump(BumpAllocator* allocator, data_pos data, uint32_t ptr_size, uint32_t new_size, uint32_t** entry_index);
-void mm_free_bump(BumpAllocator* allocator, data_pos data);
+int bump_init(BumpAllocator* bump, uint32_t initial_size, bump_defrag_cb cb, void* context);
+void bump_destroy(BumpAllocator* bump);
 
-/* Utility */
-void* mm_bump_get(BumpAllocator* allocator, HandleEntry* entry);
+/* Core Allocation (Returns the offset index of the BaseHeader) */
+uint32_t bump_malloc(BumpAllocator* bump, uint32_t size, Handle handle, uint32_t custom_flags);
 
-/* Exposed for the caller's defrag function to use */
-void mm_bump_merge_before(BumpAllocator* allocator, BaseHeader** _header);
-void mm_bump_trim_block(BumpAllocator* allocator, BaseHeader* header, uint32_t new_size);
+/* Marks block as free and handles immediate rollback if it's the latest block */
+void bump_free(BumpAllocator* bump, uint32_t offset);
+
+/* Triggers a sliding compaction. Returns the number of bytes reclaimed. */
+uint32_t bump_defrag(BumpAllocator* bump);
+
+/* Fallback growth logic */
+int bump_grow(BumpAllocator* bump, uint32_t requested_size);
 
 #endif

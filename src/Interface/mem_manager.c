@@ -1,5 +1,4 @@
 #include "Interface/mem_manager.h"
-#include "strategies/slab.h" 
 #include "Arenas/handle.h" 
 #include "Arenas/huge.h"
 #include "Arenas/nursery.h"
