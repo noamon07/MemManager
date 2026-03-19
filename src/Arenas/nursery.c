@@ -69,7 +69,7 @@ void mm_nursery_defrag()
         {
             if(header->generation < 3)
             {
-                header->is_allocated++;
+                header->generation++;
             }
             else
             {
