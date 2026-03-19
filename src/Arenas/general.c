@@ -15,8 +15,7 @@
 #define GET_INDEX(header) ((char*)header-(char*)general.mem)
 #define PUT_FOOTER(header) (*(uint32_t*)((char*)(header) + HEADER_SIZE_TO_SIZE((header)->size) - sizeof(uint32_t))= HEADER_SIZE_TO_SIZE((header)->size));
 
-#define TLSF_FL_INDEX_MAX 32 //128 MB
-#define TLSF_SL_INDEX_COUNT 16
+
 
 typedef struct {
     uint32_t size:28,
@@ -31,16 +30,7 @@ typedef struct {
     uint32_t prev_free;
     uint32_t next_free;
 } FreeBlockHeader;
-typedef struct General {
-    uint8_t* mem;                  /* Pointer to the start of the managed memory pool */
-    uint32_t mem_size;             /* Total size of the memory pool */
-    uint32_t alloc_memory;         /* Currently allocated memory in bytes */
-    
-    /* TLSF-specific control structures */
-    uint32_t fl_bitmap;                                         /* First-Level bitmap */
-    uint32_t sl_bitmap[TLSF_FL_INDEX_MAX];                      /* Second-Level bitmaps */
-    uint32_t blocks[TLSF_FL_INDEX_MAX][TLSF_SL_INDEX_COUNT];  /* Heads of free block lists */
-} General;
+
 
 static General general;
 static char initialized = 0;
@@ -345,4 +335,7 @@ void* mm_general_get(HandleEntry* entry)
         return NULL;
     return mm_general_get_by_index(entry->data.data_ptr.data_offset);
 }
-General* mm_get_general_instance(void);
+General* mm_get_general_instance(void)
+{
+    return &general;
+}

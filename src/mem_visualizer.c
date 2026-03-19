@@ -1,6 +1,7 @@
 #include "mem_visualizer.h"
 #include "Arenas/nursery.h"
 #include "Arenas/handle.h"
+#include "Arenas/general.h"
 #include <stdio.h>
 #include <stdint.h>
 #include <ctype.h>
@@ -142,6 +143,69 @@ void mm_visualize_huge() {
     printf("===================================================================================\n\n");
 }
 
+/*
+ * mm_visualize_general
+ * Prints a map of the General (TLSF) arena, including linked list states.
+ */
+void mm_visualize_general() {
+    printf("================================ [ GENERAL ARENA ] ================================\n");
+    General* general_arena = mm_get_general_instance();
+    if (general_arena->mem == NULL) {
+        printf("General Arena not initialized.\n");
+        return;
+    }
+
+    printf("General State: Start=%p, Total Size=%u, Allocated Memory=%u\n\n", 
+           (void*)general_arena->mem, general_arena->mem_size, general_arena->alloc_memory);
+
+    uint32_t current_offset = 0;
+    
+    // Unlike the nursery, we scan the entire memory pool up to mem_size
+    while (current_offset < general_arena->mem_size) {
+        BlockHeader* header = (BlockHeader*)(general_arena->mem + current_offset);
+        uint32_t block_size = HEADER_SIZE_TO_SIZE(header->size);
+        uint32_t payload_size = block_size - sizeof(BlockHeader);
+
+        // Failsafe to prevent infinite loops if memory gets corrupted
+        if (block_size == 0) {
+            printf("[ERROR] Block size is 0 at offset %08x. Aborting dump.\n", current_offset);
+            break;
+        }
+
+        // 1. Detailed Metadata Print
+        printf("[OFFSET: %08x] [A:%d B:%d] [BLOCK_SIZE: %-5u (RAW: %u)] [GEN: %d]\n", 
+               current_offset, 
+               header->is_allocated,
+               header->before_alloc,
+               block_size, 
+               header->size, 
+               header->generation);
+
+        if (header->is_allocated) {
+            // 2. Hex Dump for Allocated Blocks
+            printf("    [PAYLOAD: %-5u]\n", payload_size);
+            void* payload = (void*)(header + 1);
+            size_t dump_size = payload_size > 64 ? 64 : payload_size;
+            mem_dump(payload, dump_size);
+
+            if (payload_size > 64) {
+                printf("    ... [TRUNCATED] ...\n");
+            }
+        } else {
+            // 3. TLSF Details for Free Blocks
+            printf("    [FREE BLOCK] TLSF Links -> Prev: %08x | Next: %08x\n", 
+                   *(uint32_t*)((char*)header+sizeof(BlockHeader)), *(uint32_t*)((char*)header+sizeof(BlockHeader)+sizeof(uint32_t)));        
+            
+            // Footer reading
+            uint32_t* real_footer = (uint32_t*)((char*)header + block_size - sizeof(uint32_t));
+            printf("    Boundary Tag (Real Footer): %u\n", *real_footer);
+        }
+
+        current_offset += block_size;
+        printf("-----------------------------------------------------------------------------------\n");
+    }
+    printf("===================================================================================\n\n");
+}
 
 /*
  * mm_visualize_allocator
