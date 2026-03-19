@@ -15,6 +15,7 @@ typedef struct General {
     uint32_t fl_bitmap;                                         /* First-Level bitmap */
     uint32_t sl_bitmap[TLSF_FL_INDEX_MAX];                      /* Second-Level bitmaps */
     uint32_t blocks[TLSF_FL_INDEX_MAX][TLSF_SL_INDEX_COUNT];  /* Heads of free block lists */
+    char last_block_allocated;
 } General;
 
 

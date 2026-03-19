@@ -38,6 +38,8 @@ void mm_general_remove_block(FreeBlockHeader* block);
 void mm_general_split_block(BlockHeader* block, uint32_t size);
 void* mm_general_get(HandleEntry* entry);
 void* mm_general_get_by_index(uint32_t index);
+int mm_general_grow(uint32_t requested_size);
+void mm_general_sweep_and_age();
 
 // Helper function to map a size to its FL and SL indices
 static void mm_general_mapping(uint32_t size, uint32_t *fl, uint32_t *sl) {
@@ -118,30 +120,33 @@ uint32_t mm_malloc_general(uint32_t size, uint32_t** entry_index)
     uint32_t fl, sl;
     mm_general_mapping(size, &fl, &sl);
 
-    uint32_t sl_map = general.sl_bitmap[fl] & (~0U << sl);
-    if(!sl_map)
-    {
-        // Nothing big enough in this drawer. Look at larger drawers!
-        // Mask out everything smaller than or equal to our current FL
+
+    char found_block = 0;
+
+    for (char attempt = 0; attempt < 3 && !found_block; attempt++) {
+        uint32_t sl_map = general.sl_bitmap[fl] & (~0U << sl);
         uint32_t fl_map = general.fl_bitmap & (~0U << (fl + 1));
-        
-        if (!fl_map) {
-            // No larger drawers have ANY free blocks. Out of memory!
-            // (In the future, you could call a mm_general_grow() here)
-            return INVALID_GENERAL_INDEX; 
+        if(sl_map)
+        {
+            sl = __builtin_ctz(sl_map);
+            found_block = 1;
         }
-        
-        // Find the lowest available bit in the FL bitmap
-        fl = __builtin_ctz(fl_map);
-        
-        // Since this entire drawer holds blocks larger than we need, 
-        // we can grab the smallest available folder inside it.
-        sl = __builtin_ctz(general.sl_bitmap[fl]);
+        else if(fl_map)
+        {
+            fl = __builtin_ctz(fl_map);
+            sl = __builtin_ctz(general.sl_bitmap[fl]);
+            found_block = 1;
+        }
+        else if(attempt == 0)
+        {
+            mm_general_sweep_and_age();
+        }
+        else if(attempt == 2|| (attempt == 1 && !mm_general_grow(size)))
+        {
+            return INVALID_GENERAL_INDEX;
+        }
     }
-    else{
-        // We found a block in our original drawer! 
-        sl = __builtin_ctz(sl_map);
-    }
+
     // 4. Grab the block and remove it from the free list
     FreeBlockHeader* block = (FreeBlockHeader*)(general.mem + general.blocks[fl][sl]);
     mm_general_remove_block(block);
@@ -156,6 +161,9 @@ uint32_t mm_malloc_general(uint32_t size, uint32_t** entry_index)
     BlockHeader* next_physical = (BlockHeader*)((char*)block + HEADER_SIZE_TO_SIZE(block->header.size));
     if ((char*)next_physical < (char*)general.mem + general.mem_size) {
         next_physical->before_alloc = 1; 
+    }
+    else{
+        general.last_block_allocated = 1;
     }
     *entry_index = (uint32_t*)&block->header.entry_index;
 
@@ -254,6 +262,10 @@ void mm_free_general(data_pos data)
     {
         next->before_alloc = 0;
     }
+    else
+    {
+        general.last_block_allocated = 0;
+    }
     mm_general_merge_before(&header);
     mm_general_merge_after(header);
     PUT_FOOTER(header);
@@ -298,7 +310,7 @@ uint32_t mm_realloc_general(data_pos data, uint32_t ptr_size, uint32_t new_size,
             memmove(header+1,ptr,ptr_size);
             mm_general_split_block(header,new_size);
             ptr=header+1;
-            *entry_index = (uint32_t*)&((BlockHeader*)ptr-1)->entry_index;
+            *entry_index = (uint32_t*)&header->entry_index;
             header->generation=0;
             return GET_INDEX(header);
         }
@@ -322,6 +334,58 @@ uint32_t mm_calloc_general(uint32_t size, uint32_t** entry_index)
         memset(ptr,0,size);
     }
     return index;
+}
+void mm_general_sweep_and_age() {
+    if (!initialized) return;
+
+    uint32_t offset = 0;
+
+    // Walk linearly through the entire memory pool
+    while (offset < general.mem_size) {
+        BlockHeader* header = (BlockHeader*)(general.mem + offset);
+        uint32_t block_size = HEADER_SIZE_TO_SIZE(header->size);
+
+        // We only care about objects that are currently alive
+        if (header->is_allocated) {
+            
+            // Age the object
+            if (header->generation < 3) {
+                header->generation++;
+            } else {
+                // It has survived long enough! 
+                // Send it to the Long-Lived (Compacted) Arena
+                
+                // general_promotion(header->entry_index, block_size);
+            }
+        }
+
+        // Jump to the exact start of the next physical block
+        offset += block_size;
+    }
+}
+int mm_general_grow(uint32_t requested_size)
+{
+    requested_size+=general.mem_size;
+    uint32_t calc_size = general.mem_size;
+    while(calc_size <= requested_size)
+    {
+        calc_size*=2;
+    }
+    void* new_mem = realloc(general.mem,calc_size);
+    if(!new_mem)
+        return 0;
+    general.mem = new_mem;
+    uint32_t old_size = general.mem_size;
+    general.mem_size = calc_size;
+    BlockHeader * new_block_header = (BlockHeader*)&general.mem[old_size];
+    new_block_header->size=SIZE_TO_HEADER_SIZE(general.mem_size-old_size);
+    new_block_header->is_allocated = 0;
+    new_block_header->before_alloc = general.last_block_allocated;
+    general.last_block_allocated = 0;
+    mm_general_merge_before(&new_block_header);
+    mm_general_register_block((FreeBlockHeader*)new_block_header);
+    PUT_FOOTER(new_block_header);
+    return 1;
 }
 void* mm_general_get_by_index(uint32_t index)
 {

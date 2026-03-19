@@ -73,7 +73,16 @@ void mm_nursery_defrag()
             }
             else
             {
-                nursury_promotion(header->entry_index,HEADER_SIZE_TO_SIZE(header->size));
+                uint32_t before_size = 0;
+                if(!header->before_alloc)
+                {
+                    before_size = *((uint32_t*)header-1);
+                }
+                if(nursury_promotion(header->entry_index))
+                {
+                    offset -= before_size;
+                    header = (BlockHeader*)&nursery.mem[offset];
+                }
             }
             
         }
