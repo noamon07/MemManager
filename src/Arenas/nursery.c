@@ -147,7 +147,7 @@ void mm_nursery_merge_before(BlockHeader** _header)
 void mm_nursery_merge_after(BlockHeader* header)
 {
     BlockHeader* next = (BlockHeader*)((char*)header+HEADER_SIZE_TO_SIZE(header->size));
-    if(next->is_allocated) return;
+    if((char*)next >= (char*)nursery.mem + nursery.mem_size||next->is_allocated) return;
     if (header->is_allocated) {
         nursery.alloc_memory += HEADER_SIZE_TO_SIZE(next->size);
     }
@@ -199,11 +199,14 @@ void mm_trim_block(BlockHeader* header, uint32_t new_size)
 
 uint32_t mm_realloc_nursery(data_pos data, uint32_t ptr_size, uint32_t new_size, uint32_t** entry_index)
 {
+    mm_nursery_init();
     if(!initialized)
         return INVALID_NURSERY_INDEX;
     void* ptr = mm_nursery_get_by_index(data.data_offset);
     if(!ptr)
         return INVALID_NURSERY_INDEX;
+    if(new_size<sizeof(uint32_t))
+        new_size = sizeof(uint32_t);
     new_size+=sizeof(BlockHeader);
     new_size = ALIGN(new_size);
     uint32_t before_size = 0, next_size = 0;
@@ -211,17 +214,15 @@ uint32_t mm_realloc_nursery(data_pos data, uint32_t ptr_size, uint32_t new_size,
     if(new_size <= HEADER_SIZE_TO_SIZE(header->size))
     {
         mm_trim_block(header,new_size);
-        *entry_index = (uint32_t*)&((BlockHeader*)ptr-1)->entry_index;
         return GET_INDEX(header);
     }
     BlockHeader* next = (BlockHeader*)((char*)header+HEADER_SIZE_TO_SIZE(header->size));
-    if(!next->is_allocated)
+    if((char*)next < (char*)nursery.mem + nursery.mem_size && !next->is_allocated)
         next_size = next->size;
     if(HEADER_SIZE_TO_SIZE(header->size+next_size) >= new_size)
     {
         mm_nursery_merge_after(header);
         mm_trim_block(header,new_size);
-        *entry_index = (uint32_t*)&((BlockHeader*)ptr-1)->entry_index;
         header->generation=0;
         return GET_INDEX(header);
     }
