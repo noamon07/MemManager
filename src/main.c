@@ -6,7 +6,7 @@
 
 int main() {
     // Run the comprehensive nursery stress tests first
-    //test_bump_pointer_retreat();
+    test_bump_pointer_retreat();
     //test_cascading_retreat();
     //test_realloc_shrink();
     // test_realloc_forward_merge_perfect_fit();

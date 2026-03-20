@@ -3,6 +3,4 @@
 
 void mm_visualize_allocator(void);
 void mm_visualize_nursery(void);
-void mm_visualize_huge(void);
-void mm_visualize_general(void);
 #endif // MEM_VISUALIZER_H

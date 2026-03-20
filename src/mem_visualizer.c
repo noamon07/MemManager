@@ -1,27 +1,17 @@
 #include "mem_visualizer.h"
-#include "Arenas/nursery.h"
+#include "Strategies/nursery.h"
 #include "Arenas/handle.h"
-#include "Arenas/general.h"
 #include <stdio.h>
 #include <stdint.h>
 #include <ctype.h>
-
-// Block header structure from nursery.c
-typedef struct {
-    uint32_t size:28,
-             is_allocated:1,
-             before_alloc:1,
-             generation:2;
-    uint32_t entry_index;
-} BlockHeader;
-
-#define HEADER_SIZE_TO_SIZE(header_size) ((uint32_t)((header_size)<<3))
 
 /*
  * mem_dump
  * Dumps a region of memory in a classic hex+ASCII format.
  */
 void mem_dump(const void* data, size_t len) {
+    if (!data || len == 0) return;
+    
     const uint8_t* byte_data = (const uint8_t*)data;
     for (size_t i = 0; i < len; i += 16) {
         // Print offset
@@ -59,131 +49,50 @@ void mem_dump(const void* data, size_t len) {
  */
 void mm_visualize_nursery() {
     printf("================================ [ NURSERY ARENA ] ================================\n");
-    Nursery* nursery = mm_get_nursery_instance();
-    if (nursery->mem == NULL) {
+    
+    // Use the updated getter from your nursery implementation
+    Nursery* nursery = get_nursery_instance(); 
+    
+    // Check the underlying bump allocator's memory pointer
+    if (!nursery || !nursery->bump.mem) {
         printf("Nursery not initialized.\n");
+        printf("===================================================================================\n\n");
         return;
     }
 
-    printf("Nursery State: Start=%p, Size=%u, Bump Pointer (Offset)=%u\n\n", 
-           (void*)nursery->mem, nursery->mem_size, nursery->cur_index);
-
-    uint32_t current_offset = 0;
-    while (current_offset < nursery->cur_index) {
-        BlockHeader* header = (BlockHeader*)(nursery->mem + current_offset);
-        uint32_t block_size = HEADER_SIZE_TO_SIZE(header->size);
-        uint32_t payload_size = block_size - sizeof(BlockHeader);
-
-        // 1. Detailed Metadata Print (Bits, Raw Size, Calculated Size, Payload)
-        printf("[OFFSET: %08x] [A:%d B:%d] [BLOCK_SIZE: %-5u (RAW: %u)] [PAYLOAD: %-5u] [GEN: %d]\n", 
-               current_offset, 
-               header->is_allocated,
-               header->before_alloc,
-               block_size, 
-               header->size, // The literal 28-bit value stored in the struct
-               payload_size, 
-               header->generation);
-
-        // 2. Bump Pointer Indicator
-        if (current_offset + block_size == nursery->cur_index) {
-             printf("                                                     <<< BUMP POINTER >>>\n");
-        }
-
-        // 3. Hex Dump
-        void* payload = (void*)(header + 1);
-        size_t dump_size = payload_size > 64 ? 64 : payload_size;
-        mem_dump(payload, dump_size);
-
-        if (payload_size > 64) {
-            printf("    ... [TRUNCATED] ...\n");
-        }
-        
-        // 4. True Boundary Tag / Footer Reading
-        if (!header->is_allocated) {
-            // Step to the very end of the block and read the last 4 bytes
-            uint32_t* real_footer = (uint32_t*)((char*)header + block_size - sizeof(uint32_t));
-            printf("    Boundary Tag (Real): %u\n", *real_footer);
-        } else {
-            printf("    Boundary Tag: [None - Block is Allocated]\n");
-        }
-
-        current_offset += block_size;
-    }
-     if (current_offset >= nursery->cur_index) {
-             printf("\n[OFFSET: %08x]                                     <<< BUMP POINTER IS HERE\n", nursery->cur_index);
-    }
-    printf("===================================================================================\n\n");
-}
-
-void mm_visualize_huge() {
-    printf("================================== [ HUGE ARENA ] =================================\n");
-    HandleTable* table = mm_get_handle_table_instance();
-    if (table == NULL) {
-        printf("Handle table not initialized.\n");
-        return;
-    }
-
-    printf("Scanning Handle Table for HUGE allocations...\n\n");
-
-    for (uint32_t i = 0; i < table->size; ++i) {
-        HandleEntry* entry = &table->entries[i];
-        if (entry->is_allocated && entry->stratigy_id == ALLOC_TYPE_HUGE) {
-            void* ptr = entry->data.data_ptr.ptr;
-            printf("[HANDLE INDEX: %08x] [PTR: %p] [SIZE: %-10u]\n", 
-                   i, ptr, entry->size);
-            
-            size_t dump_size = entry->size > 64 ? 64 : entry->size;
-            mem_dump(ptr, dump_size);
-            if (entry->size > 64) {
-                printf("    ... [TRUNCATED] ...\n");
-            }
-            printf("\n");
-        }
-    }
-    printf("===================================================================================\n\n");
-}
-
-/*
- * mm_visualize_general
- * Prints a map of the General (TLSF) arena, including linked list states.
- */
-void mm_visualize_general() {
-    printf("================================ [ GENERAL ARENA ] ================================\n");
-    General* general_arena = mm_get_general_instance();
-    if (general_arena->mem == NULL) {
-        printf("General Arena not initialized.\n");
-        return;
-    }
-
-    printf("General State: Start=%p, Total Size=%u, Allocated Memory=%u\n\n", 
-           (void*)general_arena->mem, general_arena->mem_size, general_arena->alloc_memory);
+    // Print global arena state from the bump struct
+    printf("Nursery State: Start=%p, Size=%u, Bump Pointer (Offset)=%u, Allocated Mem=%u\n\n", 
+           (void*)nursery->bump.mem, 
+           nursery->bump.mem_size, 
+           nursery->bump.cur_index,
+           nursery->bump.alloc_memory);
 
     uint32_t current_offset = 0;
     
-    // Unlike the nursery, we scan the entire memory pool up to mem_size
-    while (current_offset < general_arena->mem_size) {
-        BlockHeader* header = (BlockHeader*)(general_arena->mem + current_offset);
-        uint32_t block_size = HEADER_SIZE_TO_SIZE(header->size);
-        uint32_t payload_size = block_size - sizeof(BlockHeader);
-
-        // Failsafe to prevent infinite loops if memory gets corrupted
-        if (block_size == 0) {
-            printf("[ERROR] Block size is 0 at offset %08x. Aborting dump.\n", current_offset);
-            break;
-        }
+    // Walk the contiguous blocks until we hit the frontier
+    while (current_offset < nursery->bump.cur_index) {
+        // Cast directly to your actual BaseHeader struct
+        BaseHeader* header = (BaseHeader*)(nursery->bump.mem + current_offset);
+        
+        // Use your native macro to get exact byte size
+        uint32_t block_bytes = HEADER_SIZE_TO_BYTES(header->size);
+        
+        // Payload subtracts the Header AND the Footer
+        uint32_t payload_size = block_bytes - sizeof(BaseHeader) - sizeof(BaseFooter);
 
         // 1. Detailed Metadata Print
-        printf("[OFFSET: %08x] [A:%d B:%d] [BLOCK_SIZE: %-5u (RAW: %u)] [GEN: %d]\n", 
+        // custom_flags acts as your generation counter
+        printf("[OFFSET: %08x] [A:%d B:%d] [BLOCK_SIZE: %-5u] [PAYLOAD: %-5u] [GEN: %d] [HANDLE: %u]\n", 
                current_offset, 
                header->is_allocated,
                header->before_alloc,
-               block_size, 
-               header->size, 
-               header->generation);
+               block_bytes, 
+               payload_size, 
+               header->custom_flags,
+               header->handle.index); 
 
+        // 2. Hex Dump (Only dump if allocated to avoid printing old garbage data)
         if (header->is_allocated) {
-            // 2. Hex Dump for Allocated Blocks
-            printf("    [PAYLOAD: %-5u]\n", payload_size);
             void* payload = (void*)(header + 1);
             size_t dump_size = payload_size > 64 ? 64 : payload_size;
             mem_dump(payload, dump_size);
@@ -192,18 +101,25 @@ void mm_visualize_general() {
                 printf("    ... [TRUNCATED] ...\n");
             }
         } else {
-            // 3. TLSF Details for Free Blocks
-            printf("    [FREE BLOCK] TLSF Links -> Prev: %08x | Next: %08x\n", 
-                   *(uint32_t*)((char*)header+sizeof(BlockHeader)), *(uint32_t*)((char*)header+sizeof(BlockHeader)+sizeof(uint32_t)));        
-            
-            // Footer reading
-            uint32_t* real_footer = (uint32_t*)((char*)header + block_size - sizeof(uint32_t));
-            printf("    Boundary Tag (Real Footer): %u\n", *real_footer);
+            printf("    [ FREE MEMORY HOLE ]\n");
         }
+        
+        // 3. True Boundary Tag / Footer Reading
+        // Because you implemented PUT_FOOTER for both allocated and free blocks,
+        // we can safely read the footer for EVERY block now.
+        BaseFooter* real_footer = (BaseFooter*)((uint8_t*)header + block_bytes - sizeof(BaseFooter));
+        printf("    Boundary Tag (Footer Size): %u\n\n", *real_footer);
 
-        current_offset += block_size;
-        printf("-----------------------------------------------------------------------------------\n");
+        current_offset += block_bytes;
     }
+    
+    // 4. Bump Pointer Indicator
+    if (current_offset == nursery->bump.cur_index) {
+        printf("[OFFSET: %08x]                                     <<< BUMP FRONTIER IS HERE\n", nursery->bump.cur_index);
+    } else if (current_offset > nursery->bump.cur_index) {
+        printf("[!] FATAL CORRUPTION: Block sizes exceeded cur_index!\n");
+    }
+    
     printf("===================================================================================\n\n");
 }
 
@@ -214,13 +130,9 @@ void mm_visualize_general() {
 void mm_visualize_allocator() {
     printf("\n--- MEMORY MANAGER VISUALIZATION ---\n");
     
-    // For now, we only have the nursery visualizer
     mm_visualize_nursery();
-    mm_visualize_huge();
 
-    // Later, we would add visualizations for other arenas:
-    // mm_visualize_old_gen();
-    // mm_visualize_huge_allocs();
+    // mm_visualize_long_lived(); // Ready for the TLSF visualizer
 
     printf("--- END VISUALIZATION ---\n\n");
 }

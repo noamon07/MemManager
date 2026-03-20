@@ -1,6 +1,7 @@
 #include "Strategies/nursery.h"
 #include "Strategies/promotion.h"
 #include <string.h>
+#include <stdio.h>
 
 #define NURSERY_START_SIZE (4096)
 
@@ -96,7 +97,7 @@ void nursery_merge_before(BaseHeader** _header)
     {
         prev_header->handle = header->handle;
         HandleEntry* entry = handle_table_get_entry(prev_header->handle);
-        entry->data.data_ptr.data_offset = GET_INDEX(prev_header, &nursery.bump.mem);
+        entry->data.data_ptr.data_offset = GET_INDEX(prev_header, nursery.bump.mem);
 
         prev_header->is_allocated = 1;
         prev_header->custom_flags = header->custom_flags;
@@ -109,10 +110,19 @@ void nursery_merge_after(BaseHeader* header)
 {
     BaseHeader* next = (BaseHeader*)((uint8_t*)header+HEADER_SIZE_TO_BYTES(header->size));
     if((uint8_t*)next >= (uint8_t*)nursery.bump.mem + nursery.bump.mem_size||next->is_allocated) return;
-    if (header->is_allocated) {
-        nursery.bump.alloc_memory += HEADER_SIZE_TO_BYTES(next->size);
+    if((uint8_t*)next - (uint8_t*)nursery.bump.mem >= nursery.bump.cur_index)
+    {
+        header->size+=BYTES_TO_HEADER_SIZE(nursery.bump.mem_size-nursery.bump.cur_index);
+        if (header->is_allocated) {
+            nursery.bump.alloc_memory += nursery.bump.mem_size-nursery.bump.cur_index;
+        }
     }
-    header->size += next->size;
+    else{
+        if (header->is_allocated) {
+            nursery.bump.alloc_memory += HEADER_SIZE_TO_BYTES(next->size);
+        }
+        header->size += next->size;
+    }
 }
 void nursery_trim_block(BaseHeader* header, uint32_t new_size)
 {
@@ -123,7 +133,7 @@ void nursery_trim_block(BaseHeader* header, uint32_t new_size)
     split_header->is_allocated = 1;
     split_header->size = header->size-BYTES_TO_HEADER_SIZE(new_size);
     header->size = BYTES_TO_HEADER_SIZE(new_size);
-    nursery_free(GET_INDEX(split_header, &nursery.bump.mem));
+    nursery_free(GET_INDEX(split_header, nursery.bump.mem));
 }
 uint32_t nursery_realloc(uint32_t new_size, Handle handle)
 {
@@ -148,7 +158,7 @@ uint32_t nursery_realloc(uint32_t new_size, Handle handle)
     if(new_size <= HEADER_SIZE_TO_BYTES(header->size))
     {
         nursery_trim_block(header,new_size);
-        return GET_INDEX(header, &nursery.bump.mem);
+        return GET_INDEX(header, nursery.bump.mem);
     }
     BaseHeader* next = (BaseHeader*)((uint8_t*)header+HEADER_SIZE_TO_BYTES(header->size));
     if((uint8_t*)next < nursery.bump.mem + nursery.bump.mem_size && !next->is_allocated)
@@ -158,7 +168,7 @@ uint32_t nursery_realloc(uint32_t new_size, Handle handle)
         nursery_merge_after(header);
         nursery_trim_block(header,new_size);
         header->custom_flags=0;
-        return GET_INDEX(header, &nursery.bump.mem);
+        return GET_INDEX(header, nursery.bump.mem);
     }
     uint32_t ptr_size = entry->size;
     if(!header->before_alloc)
@@ -170,7 +180,7 @@ uint32_t nursery_realloc(uint32_t new_size, Handle handle)
             nursery_merge_after(header);
             memmove(header+1,ptr,ptr_size);
             nursery_trim_block(header,new_size);
-            offset = GET_INDEX(header, &nursery.bump.mem);
+            offset = GET_INDEX(header, nursery.bump.mem);
             entry->data.data_ptr.data_offset = offset;
             header->custom_flags=0;
             return offset;
@@ -185,7 +195,7 @@ uint32_t nursery_realloc(uint32_t new_size, Handle handle)
     nursery_free(offset);
     BaseHeader* new_header = (BaseHeader*)new_ptr-1;
     new_header->custom_flags = 0;
-    return GET_INDEX(new_header, &nursery.bump.mem);
+    return GET_INDEX(new_header, nursery.bump.mem);
 
 }
 
@@ -201,10 +211,10 @@ void nursery_free(uint32_t offset)
     PUT_FOOTER(header);
 
     uint32_t block_size = HEADER_SIZE_TO_BYTES(header->size);
-    offset = GET_INDEX(header, &nursery.bump.mem);
+    offset = GET_INDEX(header, nursery.bump.mem);
 
     /* The Rollback: If this is the absolute last block, safely pull the frontier back */
-    if (offset + block_size == nursery.bump.cur_index) {
+    if (offset + block_size >= nursery.bump.cur_index) {
         nursery.bump.cur_index = offset;
         return;
     }
