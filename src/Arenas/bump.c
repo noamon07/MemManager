@@ -32,11 +32,6 @@ void bump_destroy(BumpAllocator* bump) {
 uint32_t bump_malloc(BumpAllocator* bump, uint32_t size, Handle handle, uint32_t custom_flags) {
     if (!bump ||!bump->mem) return INVALID_DATA_OFFSET;
 
-    if(size<sizeof(BaseFooter))
-        size = sizeof(BaseFooter);
-    size+=sizeof(BaseHeader);
-    size = ALIGN(size);
-
     /* Guard: Check if we are out of bounds */
     if (bump->cur_index + size > bump->mem_size) {
         return INVALID_DATA_OFFSET; 
@@ -50,8 +45,6 @@ uint32_t bump_malloc(BumpAllocator* bump, uint32_t size, Handle handle, uint32_t
     header->custom_flags = custom_flags;
     header->handle = handle;
 
-    /* Embed the footer at the very end of the block for O(1) reverse coalescing */
-    PUT_FOOTER(header);
     uint32_t allocated_offset = bump->cur_index;
     
     bump->cur_index += size;
@@ -59,11 +52,11 @@ uint32_t bump_malloc(BumpAllocator* bump, uint32_t size, Handle handle, uint32_t
 
     return allocated_offset;
 }
-void bump_free(BumpAllocator* bump, uint32_t offset) {
-    if (!bump || !bump->mem || offset >= bump->cur_index) return;
+uint8_t bump_free(BumpAllocator* bump, uint32_t offset) {
+    if (!bump || !bump->mem || offset >= bump->cur_index) return 0;
 
     BaseHeader* header = (BaseHeader*)(bump->mem + offset);
-    if (!header->is_allocated) return;
+    if (!header->is_allocated) return 0;
 
     uint32_t block_size = HEADER_SIZE_TO_BYTES(header->size);
     
@@ -77,6 +70,7 @@ void bump_free(BumpAllocator* bump, uint32_t offset) {
         BaseHeader* next_header = (BaseHeader*)(bump->mem + next_offset);
         next_header->before_alloc = 0;
     }
+    return 1;
 }
 
 uint32_t bump_defrag(BumpAllocator* bump) {

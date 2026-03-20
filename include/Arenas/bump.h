@@ -32,7 +32,7 @@ void bump_destroy(BumpAllocator* bump);
 uint32_t bump_malloc(BumpAllocator* bump, uint32_t size, Handle handle, uint32_t custom_flags);
 
 /* Marks block as free and handles immediate rollback if it's the latest block */
-void bump_free(BumpAllocator* bump, uint32_t offset);
+uint8_t bump_free(BumpAllocator* bump, uint32_t offset);
 
 /* Triggers a sliding compaction. Returns the number of bytes reclaimed. */
 uint32_t bump_defrag(BumpAllocator* bump);

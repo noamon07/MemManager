@@ -11,6 +11,7 @@
 #define HEADER_SIZE_TO_BYTES(size)  ((uint32_t)((size) << 3))
 
 #define INVALID_DATA_OFFSET ((uint32_t)-1)
+#define GET_INDEX(header,mem) ((uint8_t*)(header)-(uint8_t*)(mem))
 
 /* The Universal 8-byte Header */
 typedef struct {

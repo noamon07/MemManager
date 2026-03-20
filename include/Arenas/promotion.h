@@ -2,4 +2,4 @@
 
 
 
-int nursury_promotion(uint32_t entry_index);
+int mm_nursury_promotion(uint32_t entry_index);

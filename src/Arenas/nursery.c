@@ -78,7 +78,7 @@ void mm_nursery_defrag()
                 {
                     before_size = *((uint32_t*)header-1);
                 }
-                if(nursury_promotion(header->entry_index))
+                if(mm_nursury_promotion(header->entry_index))
                 {
                     offset -= before_size;
                     header = (BlockHeader*)&nursery.mem[offset];

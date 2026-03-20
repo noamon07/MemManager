@@ -4,7 +4,7 @@
 #include "Arenas/general.h"
 
 
-int nursury_promotion(uint32_t entry_index)
+int mm_nursury_promotion(uint32_t entry_index)
 {
     // data_pos data;
     HandleEntry* entry = handle_table_get_entry_by_index(entry_index);
