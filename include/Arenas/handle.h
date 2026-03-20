@@ -46,12 +46,12 @@ typedef struct {
 
 void handle_table_init(uint32_t initial_capacity);
 void handle_table_destroy();
-Handle handle_table_new(data_pos data, uint32_t ptr_size, alloc_type_t stratigy_id);
+Handle handle_table_new(uint32_t ptr_size, alloc_type_t stratigy_id);
 void *handle_table_get_ptr(Handle handle);
 HandleEntry *handle_table_get_entry_by_index(uint32_t index);
 HandleEntry *handle_table_get_entry(Handle handle);
 void handle_table_free(Handle handle);
-int handle_table_grow(uint32_t added_size);
+int handle_table_grow();
 HandleTable *mm_get_handle_table_instance();
 
 #endif // HAND
