@@ -78,10 +78,9 @@ uint32_t nursery_malloc(uint32_t size, Handle handle)
         bump_defrag(&nursery.bump);
         offset = bump_malloc(&nursery.bump, size, handle, 0);
     }
-    if (offset == INVALID_DATA_OFFSET) {
-        if (bump_grow(&nursery.bump, size)) {
-            offset = bump_malloc(&nursery.bump, size, handle, 0);
-        }
+    if (offset == INVALID_DATA_OFFSET && bump_grow(&nursery.bump, size)) 
+    {
+        offset = bump_malloc(&nursery.bump, size, handle, 0);
     }
     if (offset != INVALID_DATA_OFFSET)
     { 
@@ -91,7 +90,9 @@ uint32_t nursery_malloc(uint32_t size, Handle handle)
 }
 void nursery_merge_before(BaseHeader** _header)
 {
+    if(!_header)return;
     BaseHeader* header = *_header;
+    if(!header)return;
     if(header->before_alloc) return;
 
     BaseFooter prev_size = *((BaseFooter*)header-1);
@@ -112,6 +113,7 @@ void nursery_merge_before(BaseHeader** _header)
 }
 void nursery_merge_after(BaseHeader* header)
 {
+    if(!header)return;
     BaseHeader* next = (BaseHeader*)((uint8_t*)header+HEADER_SIZE_TO_BYTES(header->size));
     if((uint8_t*)next>= (uint8_t*)nursery.bump.mem + nursery.bump.mem_size||next->is_allocated) return;
     if((uint8_t*)next - (uint8_t*)nursery.bump.mem >= nursery.bump.cur_index)
@@ -124,18 +126,22 @@ void nursery_merge_after(BaseHeader* header)
     }
     else{
         header->size += next->size;
+        BaseHeader* after_next = (BaseHeader*)((uint8_t*)header + HEADER_SIZE_TO_BYTES(header->size));
         if (header->is_allocated) {
             nursery.bump.alloc_memory += HEADER_SIZE_TO_BYTES(next->size);
-            BaseHeader* after_next = (BaseHeader*)((uint8_t*)header + HEADER_SIZE_TO_BYTES(header->size));
             if ((uint8_t*)after_next < (uint8_t*)nursery.bump.mem + nursery.bump.cur_index) {
                 after_next->before_alloc = 1;
             }
         }
+        else if ((uint8_t*)after_next < (uint8_t*)nursery.bump.mem + nursery.bump.cur_index) {
+            after_next->before_alloc = 0;
+        }
+        
     }
 }
 void nursery_trim_block(BaseHeader* header, uint32_t new_size)
 {
-    if(HEADER_SIZE_TO_BYTES(header->size)-new_size < ALIGN(sizeof(BaseHeader)+sizeof(BaseFooter))) return;
+    if(!header || HEADER_SIZE_TO_BYTES(header->size)-new_size < ALIGN(sizeof(BaseHeader)+sizeof(BaseFooter))) return;
 
     BaseHeader* split_header = (BaseHeader*)((uint8_t*)header+new_size);
     split_header->before_alloc = 1;

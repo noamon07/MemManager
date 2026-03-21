@@ -1,7 +1,6 @@
 #ifndef NURSERY_H
 #define NURSERY_H
 
-#include <stdint.h>
 #include "Arenas/arena.h"
 #include "Arenas/bump.h"
 #include "Arenas/handle.h"
@@ -18,6 +17,7 @@ typedef struct {
     BumpAllocator bump;
 } Nursery;
 
+int nursery_init(uint32_t initial_size);
 /* Frees the underlying bump allocator memory */
 void nursery_destroy();
 
