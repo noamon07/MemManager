@@ -378,7 +378,7 @@ void test_12_high_churn_stress() {
 }
 
 /* ========================================================================= */
-void run_all_tests() {
+void run_nursery_tests() {
     printf("====================================================\n");
     printf("   GENERATIONAL HYBRID MEMORY MANAGER TEST SUITE    \n");
     printf("====================================================\n\n");

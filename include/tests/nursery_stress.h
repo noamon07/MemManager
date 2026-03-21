@@ -9,7 +9,7 @@
  * under various conditions, including allocation, deallocation, reallocation,
  * defragmentation, and boundary cases.
  */
-void run_all_tests();
+void run_nursery_tests();
 void test_1_frontier_rollback();
 void test_2_bidirectional_coalesce();
 void test_3_inplace_shrink();

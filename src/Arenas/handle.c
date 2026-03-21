@@ -1,9 +1,9 @@
 #include "Arenas/handle.h"
-// #include "Arenas/nursery.h"
-// #include "Arenas/huge.h"
 #include <stdlib.h>
 #include <string.h>
 #include "Strategies/nursery.h"
+
+#define INITIAL_SIZE (4096)
 
 // We'll define our own sentinel to avoid magic numbers
 static HandleTable table;
@@ -41,6 +41,7 @@ void handle_table_destroy() {
 
 Handle handle_table_new(uint32_t ptr_size, alloc_type_t stratigy_id){
     Handle invalid_handle = {INVALID_INDEX, 0};
+    handle_table_init(INITIAL_SIZE);
     if (!initialized || stratigy_id <= ALLOC_TYPE_ERROR || stratigy_id >= ALLOC_TYPE_MAX){
         return invalid_handle;
     }
@@ -62,6 +63,10 @@ Handle handle_table_new(uint32_t ptr_size, alloc_type_t stratigy_id){
 }
 
 void *handle_table_get_ptr(Handle handle) {
+    handle_table_init(INITIAL_SIZE);
+    if (!initialized) {
+        return NULL;
+    }
     HandleEntry* entry = handle_table_get_entry(handle);
     if (!entry) {
         return NULL;
@@ -86,6 +91,7 @@ void *handle_table_get_ptr(Handle handle) {
 
 HandleEntry *handle_table_get_entry_by_index(uint32_t index)
 {
+    handle_table_init(INITIAL_SIZE);
     if (!initialized || index >= table.size) {
         return NULL;
     }
@@ -101,6 +107,10 @@ HandleEntry *handle_table_get_entry_by_index(uint32_t index)
 
 HandleEntry *handle_table_get_entry(Handle handle)
 {
+    handle_table_init(INITIAL_SIZE);
+    if (!initialized) {
+        return NULL;
+    }
     HandleEntry *entry = handle_table_get_entry_by_index(handle.index);
     if (!entry) {
         return NULL;
@@ -116,6 +126,10 @@ HandleEntry *handle_table_get_entry(Handle handle)
 
 
 void handle_table_free(Handle handle) {
+    handle_table_init(INITIAL_SIZE);
+    if (!initialized) {
+        return;
+    }
     HandleEntry *entry = handle_table_get_entry(handle);
     if (!entry) {
         return;
@@ -129,6 +143,7 @@ void handle_table_free(Handle handle) {
 }
 
 int handle_table_grow() {
+    handle_table_init(INITIAL_SIZE);
     if (!initialized || table.size > (INVALID_INDEX - table.size)) {
         return 0;
     }
@@ -151,6 +166,7 @@ int handle_table_grow() {
 }
 HandleTable *mm_get_handle_table_instance()
 {
+    handle_table_init(INITIAL_SIZE);
     if(!initialized)
         return NULL;
     return &table;
