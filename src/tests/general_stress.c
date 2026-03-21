@@ -198,7 +198,7 @@ void test_gen_6_fragmentation_storm() {
     TEST_START("6. TLSF Fragmentation Storm");
     General* g = get_general();
     
-    #define CHURN_COUNT 500
+    #define CHURN_COUNT 1000
     uint32_t offsets[CHURN_COUNT];
     Handle handles[CHURN_COUNT];
     
