@@ -16,15 +16,15 @@ static int nursery_defrag_callback(void* arena_context, BaseHeader* header, uint
     /* --- CASE 1: Promotion (Generation 3+) --- */
     if (header->custom_flags >= NURSERY_PROMOTION_GENERATION) {
         if(nursury_promotion(header->handle))
+        {
             return 0;
-        HandleEntry* entry = handle_table_get_entry(header->handle);
-            if(!entry)
-                return 0;
-            entry->data.data_ptr.data_offset = new_offset;
-        return 1;
+        }
     }
-    /* 1. Increment its generation (it survived another cycle!) */
-    header->custom_flags++;
+    else
+    {
+        /* 1. Increment its generation (it survived another cycle!) */
+        header->custom_flags++;
+    }
 
     /* 2. Update the Global Handle Table with the NEW offset it is sliding to */
     HandleEntry* entry = handle_table_get_entry(header->handle);

@@ -231,12 +231,16 @@ void test_8_generational_aging() {
     assert(get_header(h1)->custom_flags == 2);
     
     bump_defrag(&n->bump);
-    // On the 3rd defrag (NURSERY_PROMOTION_GENERATION), the callback returns 0 
+    assert(get_header(h1)->custom_flags == 3);
+
+    bump_defrag(&n->bump);
+    // On the 4th defrag > (NURSERY_PROMOTION_GENERATION), the callback returns 0 
     // because nursury_promotion drops it (currently mocked). 
     // Thus, it should be erased from the Nursery footprint!
     assert(n->bump.alloc_memory == 0);
     assert(n->bump.cur_index == 0);
 
+    mm_free(h1);
     TEST_PASS();
 }
 
@@ -386,7 +390,7 @@ void run_all_tests() {
     test_5_neighbor_absorption();
     test_6_full_relocation();
     test_7_sliding_compaction();
-    //test_8_generational_aging();
+    test_8_generational_aging();
     test_9_dynamic_growth();
     test_10_byte_alignment();
     test_11_oom_fallback();
