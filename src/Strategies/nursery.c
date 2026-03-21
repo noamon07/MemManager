@@ -17,6 +17,10 @@ static int nursery_defrag_callback(void* arena_context, BaseHeader* header, uint
     if (header->custom_flags >= NURSERY_PROMOTION_GENERATION) {
         if(nursury_promotion(header->handle))
             return 0;
+        HandleEntry* entry = handle_table_get_entry(header->handle);
+            if(!entry)
+                return 0;
+            entry->data.data_ptr.data_offset = new_offset;
         return 1;
     }
     /* 1. Increment its generation (it survived another cycle!) */
@@ -109,19 +113,24 @@ void nursery_merge_before(BaseHeader** _header)
 void nursery_merge_after(BaseHeader* header)
 {
     BaseHeader* next = (BaseHeader*)((uint8_t*)header+HEADER_SIZE_TO_BYTES(header->size));
-    if((uint8_t*)next >= (uint8_t*)nursery.bump.mem + nursery.bump.mem_size||next->is_allocated) return;
+    if((uint8_t*)next>= (uint8_t*)nursery.bump.mem + nursery.bump.mem_size||next->is_allocated) return;
     if((uint8_t*)next - (uint8_t*)nursery.bump.mem >= nursery.bump.cur_index)
     {
         header->size+=BYTES_TO_HEADER_SIZE(nursery.bump.mem_size-nursery.bump.cur_index);
         if (header->is_allocated) {
             nursery.bump.alloc_memory += nursery.bump.mem_size-nursery.bump.cur_index;
+            nursery.bump.cur_index = GET_INDEX(header, nursery.bump.mem)+HEADER_SIZE_TO_BYTES(header->size);
         }
     }
     else{
+        header->size += next->size;
         if (header->is_allocated) {
             nursery.bump.alloc_memory += HEADER_SIZE_TO_BYTES(next->size);
+            BaseHeader* after_next = (BaseHeader*)((uint8_t*)header + HEADER_SIZE_TO_BYTES(header->size));
+            if ((uint8_t*)after_next < (uint8_t*)nursery.bump.mem + nursery.bump.cur_index) {
+                after_next->before_alloc = 1;
+            }
         }
-        header->size += next->size;
     }
 }
 void nursery_trim_block(BaseHeader* header, uint32_t new_size)
@@ -141,20 +150,19 @@ uint32_t nursery_realloc(uint32_t new_size, Handle handle)
     if(!initialized)
         return INVALID_DATA_OFFSET;
     HandleEntry* entry = handle_table_get_entry(handle);
-    void* ptr = NULL;
     if(!entry)
         return INVALID_DATA_OFFSET;
     uint32_t offset = entry->data.data_ptr.data_offset;
     if(offset == INVALID_DATA_OFFSET)
         return nursery_malloc(new_size, handle);
 
-    ptr = nursery.bump.mem + offset + sizeof(BaseHeader);
+    BaseHeader* header = (BaseHeader*)(nursery.bump.mem + offset);
+    void* ptr = (void*)(header+1);
     if(new_size<sizeof(BaseFooter))
         new_size = sizeof(BaseFooter);
     new_size+=sizeof(BaseHeader);
     new_size = ALIGN(new_size);
     uint32_t before_size = 0, next_size = 0;
-    BaseHeader* header = (BaseHeader*)ptr-1;
     if(new_size <= HEADER_SIZE_TO_BYTES(header->size))
     {
         nursery_trim_block(header,new_size);
@@ -186,17 +194,30 @@ uint32_t nursery_realloc(uint32_t new_size, Handle handle)
             return offset;
         }
     }
-    uint32_t new_off_set = nursery_malloc(new_size-sizeof(BaseHeader), handle);
-    if(new_off_set == INVALID_DATA_OFFSET)
-        return INVALID_DATA_OFFSET;
+    uint32_t new_off_set = bump_malloc(&nursery.bump, new_size, handle, 0);
+    if (new_off_set == INVALID_DATA_OFFSET && (nursery.bump.mem_size - nursery.bump.alloc_memory >= new_size)) {
+        bump_defrag(&nursery.bump);
+        if(entry->stratigy_id != ALLOC_TYPE_NURSERY)
+            return entry->data.data_ptr.data_offset;
+        offset = entry->data.data_ptr.data_offset;
+        /* Now try allocating the new space again */
+        new_off_set = bump_malloc(&nursery.bump, new_size, handle, 0);
+    }
+    if (new_off_set == INVALID_DATA_OFFSET) {
+        if (bump_grow(&nursery.bump, new_size)) {
+            new_off_set = bump_malloc(&nursery.bump, new_size, handle, 0);
+        }
+    }
+    if(new_off_set == INVALID_DATA_OFFSET) return INVALID_DATA_OFFSET;
 
-    void* new_ptr = nursery.bump.mem + new_off_set;
-    memmove(new_ptr,ptr,ptr_size);
+    ptr = nursery.bump.mem + offset + sizeof(BaseHeader);
+    void* new_ptr = nursery.bump.mem + new_off_set + sizeof(BaseHeader);
+    memmove(new_ptr, ptr, ptr_size);
     nursery_free(offset);
-    BaseHeader* new_header = (BaseHeader*)new_ptr-1;
+    BaseHeader* new_header = (BaseHeader*)(nursery.bump.mem + new_off_set);
     new_header->custom_flags = 0;
-    return GET_INDEX(new_header, nursery.bump.mem);
-
+    entry->data.data_ptr.data_offset = new_off_set;
+    return new_off_set;
 }
 
 void nursery_free(uint32_t offset)
@@ -208,8 +229,7 @@ void nursery_free(uint32_t offset)
     BaseHeader* header = (BaseHeader*)(nursery.bump.mem + offset);
     nursery_merge_after(header);
     nursery_merge_before(&header);
-    PUT_FOOTER(header);
-
+    
     uint32_t block_size = HEADER_SIZE_TO_BYTES(header->size);
     offset = GET_INDEX(header, nursery.bump.mem);
 
@@ -223,6 +243,7 @@ void nursery_free(uint32_t offset)
     if((uint8_t*)next < (uint8_t*)nursery.bump.mem + nursery.bump.mem_size)
     {
         next->before_alloc = 0;
+        PUT_FOOTER(header);
     }
 }
 void* nursery_get(HandleEntry* entry)

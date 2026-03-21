@@ -46,7 +46,7 @@ Handle handle_table_new(uint32_t ptr_size, alloc_type_t stratigy_id){
     }
     if(table.head == INVALID_INDEX)
     {
-        if(!handle_table_grow(table.size))
+        if(!handle_table_grow())
             return invalid_handle;
     }
     HandleEntry *entry = &table.entries[table.head];
@@ -102,7 +102,11 @@ HandleEntry *handle_table_get_entry_by_index(uint32_t index)
 HandleEntry *handle_table_get_entry(Handle handle)
 {
     HandleEntry *entry = handle_table_get_entry_by_index(handle.index);
-    if (!entry || entry->generation != handle.generation) {
+    if (!entry) {
+        return NULL;
+    }
+    if(entry->generation != handle.generation)
+    {
         return NULL;
     }
 
@@ -113,7 +117,9 @@ HandleEntry *handle_table_get_entry(Handle handle)
 
 void handle_table_free(Handle handle) {
     HandleEntry *entry = handle_table_get_entry(handle);
-
+    if (!entry) {
+        return;
+    }
     entry->is_allocated = 0;
     entry->generation++;
 
@@ -133,7 +139,7 @@ int handle_table_grow() {
     uint32_t old_size = table.size;
     uint32_t new_size = old_size + table.size;
     // Build the free list for the NEWLY added space
-    table.entries[new_size-1].data.next = table.head;
+    new_entries[new_size-1].data.next = table.head;
     for (uint32_t i = old_size; i < new_size-1; ++i) {
         new_entries[i].data.next = i + 1;
     }

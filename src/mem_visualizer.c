@@ -78,18 +78,19 @@ void mm_visualize_nursery() {
         uint32_t block_bytes = HEADER_SIZE_TO_BYTES(header->size);
         
         // Payload subtracts the Header AND the Footer
-        uint32_t payload_size = block_bytes - sizeof(BaseHeader) - sizeof(BaseFooter);
+        uint32_t payload_size = block_bytes - sizeof(BaseHeader);
 
         // 1. Detailed Metadata Print
         // custom_flags acts as your generation counter
-        printf("[OFFSET: %08x] [A:%d B:%d] [BLOCK_SIZE: %-5u] [PAYLOAD: %-5u] [GEN: %d] [HANDLE: %u]\n", 
+        printf("[OFFSET: %08x] [A:%d B:%d] [BLOCK_SIZE: %-5u] [PAYLOAD: %-5u] [GEN: %d] [HANDLE: %u, GENERATION: %u]\n", 
                current_offset, 
                header->is_allocated,
                header->before_alloc,
                block_bytes, 
                payload_size, 
                header->custom_flags,
-               header->handle.index); 
+               header->handle.index,
+               header->handle.generation); 
 
         // 2. Hex Dump (Only dump if allocated to avoid printing old garbage data)
         if (header->is_allocated) {
@@ -119,7 +120,6 @@ void mm_visualize_nursery() {
     } else if (current_offset > nursery->bump.cur_index) {
         printf("[!] FATAL CORRUPTION: Block sizes exceeded cur_index!\n");
     }
-    
     printf("===================================================================================\n\n");
 }
 

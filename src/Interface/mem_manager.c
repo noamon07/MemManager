@@ -95,7 +95,10 @@ Handle mm_realloc(Handle handle, uint32_t new_size)
     {
         case ALLOC_TYPE_NURSERY:
             if(nursery_realloc(new_size,handle)!=INVALID_DATA_OFFSET)
+            {
+                entry->size = new_size;
                 return handle;
+            }
             break;
         case ALLOC_TYPE_GENERAL:
             break;
