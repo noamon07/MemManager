@@ -22,4 +22,5 @@ void test_9_dynamic_growth();
 void test_10_byte_alignment();
 void test_11_oom_fallback();
 void test_12_high_churn_stress();
+void test_13_realloc_payload_integrity();
 #endif // NURSERY_STRESS_TESTS_H

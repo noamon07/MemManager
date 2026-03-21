@@ -79,7 +79,6 @@ uint32_t bump_defrag(BumpAllocator* bump) {
     uint32_t read_offset = 0;
     uint32_t write_offset = 0;
     uint32_t starting_alloc = bump->alloc_memory;
-
     while (read_offset < bump->cur_index) {
         BaseHeader* header = (BaseHeader*)(bump->mem + read_offset);
         uint32_t block_size = HEADER_SIZE_TO_BYTES(header->size);

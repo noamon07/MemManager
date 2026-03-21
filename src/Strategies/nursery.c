@@ -115,7 +115,6 @@ void nursery_merge_after(BaseHeader* header)
 {
     if(!header)return;
     BaseHeader* next = (BaseHeader*)((uint8_t*)header+HEADER_SIZE_TO_BYTES(header->size));
-    if((uint8_t*)next>= (uint8_t*)nursery.bump.mem + nursery.bump.mem_size||next->is_allocated) return;
     if((uint8_t*)next - (uint8_t*)nursery.bump.mem >= nursery.bump.cur_index)
     {
         header->size+=BYTES_TO_HEADER_SIZE(nursery.bump.mem_size-nursery.bump.cur_index);
@@ -123,20 +122,19 @@ void nursery_merge_after(BaseHeader* header)
             nursery.bump.alloc_memory += nursery.bump.mem_size-nursery.bump.cur_index;
             nursery.bump.cur_index = GET_INDEX(header, nursery.bump.mem)+HEADER_SIZE_TO_BYTES(header->size);
         }
+        return;
     }
-    else{
-        header->size += next->size;
-        BaseHeader* after_next = (BaseHeader*)((uint8_t*)header + HEADER_SIZE_TO_BYTES(header->size));
-        if (header->is_allocated) {
-            nursery.bump.alloc_memory += HEADER_SIZE_TO_BYTES(next->size);
-            if ((uint8_t*)after_next < (uint8_t*)nursery.bump.mem + nursery.bump.cur_index) {
-                after_next->before_alloc = 1;
-            }
+    if((uint8_t*)next>= (uint8_t*)nursery.bump.mem + nursery.bump.mem_size||next->is_allocated) return;
+    header->size += next->size;
+    BaseHeader* after_next = (BaseHeader*)((uint8_t*)header + HEADER_SIZE_TO_BYTES(header->size));
+    if (header->is_allocated) {
+        nursery.bump.alloc_memory += HEADER_SIZE_TO_BYTES(next->size);
+        if ((uint8_t*)after_next < (uint8_t*)nursery.bump.mem + nursery.bump.cur_index) {
+            after_next->before_alloc = 1;
         }
-        else if ((uint8_t*)after_next < (uint8_t*)nursery.bump.mem + nursery.bump.cur_index) {
-            after_next->before_alloc = 0;
-        }
-        
+    }
+    else if ((uint8_t*)after_next < (uint8_t*)nursery.bump.mem + nursery.bump.cur_index) {
+        after_next->before_alloc = 0;
     }
 }
 void nursery_trim_block(BaseHeader* header, uint32_t new_size)
@@ -177,6 +175,10 @@ uint32_t nursery_realloc(uint32_t new_size, Handle handle)
     BaseHeader* next = (BaseHeader*)((uint8_t*)header+HEADER_SIZE_TO_BYTES(header->size));
     if((uint8_t*)next < nursery.bump.mem + nursery.bump.mem_size && !next->is_allocated)
         next_size = HEADER_SIZE_TO_BYTES(next->size);
+    if((uint8_t*)next-nursery.bump.mem >= nursery.bump.cur_index)
+    {
+        next_size = nursery.bump.mem_size - GET_INDEX(next, nursery.bump.mem);
+    }
     if(HEADER_SIZE_TO_BYTES(header->size)+next_size >= new_size)
     {
         nursery_merge_after(header);
@@ -185,6 +187,10 @@ uint32_t nursery_realloc(uint32_t new_size, Handle handle)
         return GET_INDEX(header, nursery.bump.mem);
     }
     uint32_t ptr_size = entry->size;
+    uint32_t max_safe_payload = HEADER_SIZE_TO_BYTES(header->size) - sizeof(BaseHeader);
+    if (ptr_size > max_safe_payload) {
+        ptr_size = max_safe_payload;
+    }
     if(!header->before_alloc)
     {
         before_size = *((BaseFooter*)header-1);

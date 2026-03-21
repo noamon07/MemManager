@@ -106,7 +106,7 @@ void general_merge_after(BaseHeader* header)
 }
 void general_trim_block(BaseHeader* header, uint32_t new_size)
 {
-    if(!header || HEADER_SIZE_TO_BYTES(header->size)-new_size < ALIGN(sizeof(BaseHeader)+sizeof(BaseFooter))) return;
+    if(!header || HEADER_SIZE_TO_BYTES(header->size)-new_size < ALIGN(sizeof(FreeBlockHeader)+sizeof(BaseFooter))) return;
 
     BaseHeader* split_header = (BaseHeader*)((uint8_t*)header+new_size);
     split_header->before_alloc = 1;
@@ -125,9 +125,9 @@ uint32_t general_malloc(uint32_t size, Handle handle)
     if(!entry)
         return INVALID_DATA_OFFSET;
 
-    if(size<sizeof(BaseFooter))
-        size = sizeof(BaseFooter);
     size+=sizeof(BaseHeader);
+    if(size<sizeof(FreeBlockHeader) + sizeof(BaseFooter))
+        size = sizeof(FreeBlockHeader) + sizeof(BaseFooter);
     size = ALIGN(size);
 
     uint32_t offset = tlsf_find_and_remove(&general.tlsf, general.mem, size);
@@ -190,9 +190,9 @@ uint32_t general_realloc(uint32_t new_size, Handle handle)
         return general_malloc(new_size, handle);
 
     BaseHeader* header = (BaseHeader*)(general.mem + offset);
-    if(new_size<sizeof(BaseFooter))
-        new_size = sizeof(BaseFooter);
     new_size+=sizeof(BaseHeader);
+    if(new_size<sizeof(FreeBlockHeader) + sizeof(BaseFooter))
+        new_size = sizeof(FreeBlockHeader) + sizeof(BaseFooter);
     new_size = ALIGN(new_size);
     uint32_t before_size = 0, next_size = 0;
     if(new_size <= HEADER_SIZE_TO_BYTES(header->size))

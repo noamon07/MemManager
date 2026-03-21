@@ -1,5 +1,6 @@
 #include "Arenas/tlsf.h"
 #include <string.h>
+#include <stdio.h>
 
 /* Internal Helper: Maps a size to its First Level (fl) and Second Level (sl) bin */
 static void tlsf_mapping(uint32_t size, uint32_t* fl, uint32_t* sl) {
@@ -27,6 +28,10 @@ void tlsf_clear(TLSFAllocator* tlsf) {
 
 void tlsf_insert(TLSFAllocator* tlsf, uint8_t* mem_base, uint32_t offset) {
     if (!tlsf || !mem_base || offset == INVALID_DATA_OFFSET) return;
+    if(offset==16)
+    {
+        printf("a");
+    }
     BaseHeader* header = (BaseHeader*)(mem_base + offset);
     uint32_t size = HEADER_SIZE_TO_BYTES(header->size);
     if(size< sizeof(FreeBlockHeader)+sizeof(BaseFooter))
@@ -43,7 +48,6 @@ void tlsf_insert(TLSFAllocator* tlsf, uint8_t* mem_base, uint32_t offset) {
         FreeBlockHeader* old_head = (FreeBlockHeader*)(mem_base + tlsf->blocks[fl][sl]);
         old_head->prev_free = offset;
     }
-
     tlsf->blocks[fl][sl] = offset;
     tlsf->fl_bitmap |= (1U << fl);
     tlsf->sl_bitmap[fl] |= (1U << sl);
@@ -53,7 +57,8 @@ void tlsf_remove(TLSFAllocator* tlsf, uint8_t* mem_base, uint32_t offset) {
     if (!tlsf || !mem_base || offset == INVALID_DATA_OFFSET) return;
 
     FreeBlockHeader* node = (FreeBlockHeader*)(mem_base + offset);
-
+    if(HEADER_SIZE_TO_BYTES(node->header.size)<sizeof(FreeBlockHeader)+sizeof(BaseFooter))
+        return;
     /* Connect the previous free block to the next free block */
     if (node->prev_free != INVALID_DATA_OFFSET) {
         FreeBlockHeader* prev_node = (FreeBlockHeader*)(mem_base + node->prev_free);
