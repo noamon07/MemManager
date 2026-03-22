@@ -29,8 +29,8 @@ void test_gen_1_split_and_trim() {
     TEST_START("1. TLSF Splitting & Trimming");
     General* g = get_general();
 
-    Handle h1 = handle_table_new(64, ALLOC_TYPE_GENERAL);
-    Handle h2 = handle_table_new(64, ALLOC_TYPE_GENERAL);
+    Handle h1 = handle_table_new(64);
+    Handle h2 = handle_table_new(64);
 
     uint32_t off1 = general_malloc(64, h1);
     uint32_t off2 = general_malloc(64, h2);
@@ -64,10 +64,10 @@ void test_gen_2_double_merge() {
     TEST_START("2. The Coalescing Crucible (Double Merge)");
     General* g = get_general();
 
-    Handle h1 = handle_table_new(64, ALLOC_TYPE_GENERAL);
-    Handle h2 = handle_table_new(64, ALLOC_TYPE_GENERAL);
-    Handle h3 = handle_table_new(64, ALLOC_TYPE_GENERAL);
-    Handle h4 = handle_table_new(64, ALLOC_TYPE_GENERAL);
+    Handle h1 = handle_table_new(64);
+    Handle h2 = handle_table_new(64);
+    Handle h3 = handle_table_new(64);
+    Handle h4 = handle_table_new(64);
 
     uint32_t o1 = general_malloc(64, h1);
     uint32_t o2 = general_malloc(64, h2);
@@ -103,9 +103,9 @@ void test_gen_3_inplace_expand() {
     TEST_START("3. Reallocation: In-Place Expansion");
     General* g = get_general();
 
-    Handle h1 = handle_table_new(64, ALLOC_TYPE_GENERAL);
-    Handle h2 = handle_table_new(64, ALLOC_TYPE_GENERAL);
-    Handle h3 = handle_table_new(64, ALLOC_TYPE_GENERAL);
+    Handle h1 = handle_table_new(64);
+    Handle h2 = handle_table_new(64);
+    Handle h3 = handle_table_new(64);
 
     uint32_t o1 = general_malloc(64, h1);
     uint32_t o2 = general_malloc(64, h2);
@@ -133,8 +133,8 @@ void test_gen_4_out_of_place_move() {
     TEST_START("4. Reallocation: Out-of-Place Move");
     General* g = get_general();
 
-    Handle h1 = handle_table_new(64, ALLOC_TYPE_GENERAL);
-    Handle h2 = handle_table_new(64, ALLOC_TYPE_GENERAL);
+    Handle h1 = handle_table_new(64);
+    Handle h2 = handle_table_new(64);
 
     uint32_t o1 = general_malloc(64, h1);
     uint32_t o2 = general_malloc(64, h2); // Blocks h1 from growing
@@ -164,8 +164,8 @@ void test_gen_5_ram_stitching() {
     
     uint32_t starting_size = g->mem_size;
 
-    Handle h1 = handle_table_new(starting_size - 128, ALLOC_TYPE_GENERAL);
-    Handle h2 = handle_table_new(2048, ALLOC_TYPE_GENERAL);
+    Handle h1 = handle_table_new(starting_size - 128);
+    Handle h2 = handle_table_new(2048);
 
     // Allocate almost the entire arena
     uint32_t o1 = general_malloc(starting_size - 128, h1);
@@ -205,7 +205,7 @@ void test_gen_6_fragmentation_storm() {
     for (int i = 0; i < CHURN_COUNT; i++) {
         offsets[i] = INVALID_DATA_OFFSET;
         // Generate reusable handles for the slots
-        handles[i] = handle_table_new(0, ALLOC_TYPE_GENERAL); 
+        handles[i] = handle_table_new(0); 
     }
 
     srand(1337);
@@ -214,7 +214,6 @@ void test_gen_6_fragmentation_storm() {
         int slot = rand() % CHURN_COUNT;
         int action = rand() % 3;
 
-        
         if (action == 0 || offsets[slot] == INVALID_DATA_OFFSET) {
             // ALLOCATE
             if (offsets[slot] != INVALID_DATA_OFFSET) {
@@ -263,8 +262,8 @@ void test_gen_7_payload_integrity() {
     TEST_START("7. Realloc Payload Integrity Check");
     General* g = get_general();
 
-    Handle h1 = handle_table_new(64, ALLOC_TYPE_GENERAL);
-    Handle hBlock = handle_table_new(64, ALLOC_TYPE_GENERAL);
+    Handle h1 = handle_table_new(64);
+    Handle hBlock = handle_table_new(64);
 
     uint32_t o1 = general_malloc(64, h1);
     uint32_t oBlock = general_malloc(64, hBlock);

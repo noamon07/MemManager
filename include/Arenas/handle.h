@@ -4,15 +4,8 @@
 #include <stddef.h>
 #include <stdint.h>
 #include "Interface/mem_manager.h"
+#include "Strategies/strategy.h"
 
-typedef enum {
-    ALLOC_TYPE_ERROR,
-    ALLOC_TYPE_NURSERY,
-    ALLOC_TYPE_GENERAL,
-    ALLOC_TYPE_SLAB,
-    ALLOC_TYPE_HUGE,
-    ALLOC_TYPE_MAX,
-}alloc_type_t;
 
 typedef struct HandleEntry HandleEntry;
 
@@ -29,11 +22,12 @@ struct HandleEntry {
         uint32_t next; // Index of the next free entry in the list
     } data;
     uint32_t generation;
-    alloc_type_t stratigy_id;
+    Strategy* strategy;
     uint32_t size;
     // A flag to know if the entry is in use or not.
     // This simplifies logic compared to checking generation == 0.
-    char is_allocated;
+    uint8_t is_allocated;
+    uint8_t is_marked;
 };
 
 typedef struct {
@@ -46,7 +40,7 @@ typedef struct {
 
 void handle_table_init(uint32_t initial_capacity);
 void handle_table_destroy();
-Handle handle_table_new(uint32_t ptr_size, alloc_type_t stratigy_id);
+Handle handle_table_new(uint32_t ptr_size);
 void *handle_table_get_ptr(Handle handle);
 HandleEntry *handle_table_get_entry_by_index(uint32_t index);
 HandleEntry *handle_table_get_entry(Handle handle);

@@ -39,10 +39,10 @@ void handle_table_destroy() {
     }
 }
 
-Handle handle_table_new(uint32_t ptr_size, alloc_type_t stratigy_id){
+Handle handle_table_new(uint32_t ptr_size){
     Handle invalid_handle = {INVALID_INDEX, 0};
     handle_table_init(INITIAL_SIZE);
-    if (!initialized || stratigy_id <= ALLOC_TYPE_ERROR || stratigy_id >= ALLOC_TYPE_MAX){
+    if (!initialized){
         return invalid_handle;
     }
     if(table.head == INVALID_INDEX)
@@ -57,7 +57,6 @@ Handle handle_table_new(uint32_t ptr_size, alloc_type_t stratigy_id){
     table.head = entry->data.next;
     entry->size = ptr_size;
     entry->is_allocated = 1;
-    entry->stratigy_id = stratigy_id;
 
     return (Handle){ index, entry->generation };
 }
@@ -71,20 +70,9 @@ void *handle_table_get_ptr(Handle handle) {
     if (!entry) {
         return NULL;
     }
-    switch (entry->stratigy_id)
+    if(entry->strategy)
     {
-        case ALLOC_TYPE_NURSERY:
-            return nursery_get(entry);
-            break;
-        case ALLOC_TYPE_GENERAL:
-            break;
-        case ALLOC_TYPE_SLAB:
-            break;
-        case ALLOC_TYPE_HUGE:
-            // return mm_huge_get(entry);
-            break;
-        default:
-            break;
+        return entry->strategy->get(entry->data.data_ptr.data_offset);
     }
     return NULL;
 }

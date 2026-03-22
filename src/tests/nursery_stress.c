@@ -365,6 +365,7 @@ void test_12_high_churn_stress() {
     srand(42);
 
     for (int i = 0; i < 5000; i++) {
+        //printf("%d\n",i);
         int slot = rand() % CHURN_COUNT;
         int action = rand() % 3;
         if (action == 0 || active_handles[slot].index == INVALID_INDEX) {

@@ -44,7 +44,8 @@ void general_free(uint32_t offset);
 uint32_t general_realloc(uint32_t new_size, Handle handle);
 
 /* Expose the pointer for the Handle Table */
-void* general_get(HandleEntry* entry);
+//void* general_get(HandleEntry* entry);
+void* general_get(uint32_t offset);
 General* get_general_instance(void);
 
 #endif

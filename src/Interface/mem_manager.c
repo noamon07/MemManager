@@ -21,11 +21,7 @@ void mm_destroy()
 {
     
 }
-alloc_type_t mm_type_selector(uint32_t size)
-{
-    (void)size;
-    return ALLOC_TYPE_NURSERY;
-}
+
 
 Handle mm_malloc(uint32_t size) {
     Handle invalid_handle = {INVALID_INDEX, 0};
@@ -34,15 +30,15 @@ Handle mm_malloc(uint32_t size) {
         return invalid_handle;
     }
 
-    alloc_type_t type = mm_type_selector(size);
-    Handle handle = handle_table_new(size, type);
+    Handle handle = handle_table_new(size);
     if (handle.index == INVALID_INDEX) return invalid_handle;
-    if(type == ALLOC_TYPE_NURSERY)
+    if(nursery_malloc(size,handle)!=INVALID_DATA_OFFSET)
     {
-        if(nursery_malloc(size,handle)!=INVALID_DATA_OFFSET)
-        {
-            return handle;
-        }
+        HandleEntry* entry = handle_table_get_entry(handle);
+        if(!entry)
+            return invalid_handle;
+        entry->size = size;
+        return handle;
     }
     handle_table_free(handle);
     return invalid_handle;
@@ -61,20 +57,7 @@ void mm_free(Handle handle) {
     if(!entry)
         return;
 
-    switch (entry->stratigy_id)
-    {
-        case ALLOC_TYPE_NURSERY:
-            nursery_free(entry->data.data_ptr.data_offset);
-            break;
-        case ALLOC_TYPE_GENERAL:
-            break;
-        case ALLOC_TYPE_SLAB:
-            break;
-        case ALLOC_TYPE_HUGE:
-            break;
-        default:
-            break;
-    }
+    entry->strategy->free(entry->data.data_ptr.data_offset);
 
     handle_table_free(handle);
 }
@@ -90,24 +73,13 @@ Handle mm_realloc(Handle handle, uint32_t new_size)
     if(!entry)
         return invalid_handle;
 
-    alloc_type_t type = entry->stratigy_id;
-    switch (type)
+    if(entry->strategy)
     {
-        case ALLOC_TYPE_NURSERY:
-            if(nursery_realloc(new_size,handle)!=INVALID_DATA_OFFSET)
-            {
-                entry->size = new_size;
-                return handle;
-            }
-            break;
-        case ALLOC_TYPE_GENERAL:
-            break;
-        case ALLOC_TYPE_SLAB:
-            break;
-        case ALLOC_TYPE_HUGE:
-            break;
-        default:
-            break;
+        if(entry->strategy->realloc(new_size,handle)!=INVALID_DATA_OFFSET)
+        {
+            entry->size = new_size;
+            return handle;
+        }
     }
     return invalid_handle;
 }
@@ -122,21 +94,10 @@ Handle mm_calloc(uint32_t size) {
     if (!entry) {
         return invalid_handle;
     }
-    alloc_type_t type = entry->stratigy_id;
     void* ptr = NULL;
-    switch (type)
+    if(entry->strategy)
     {
-        case ALLOC_TYPE_NURSERY:
-            ptr = nursery_get(entry);
-            break;
-        case ALLOC_TYPE_GENERAL:
-            break;
-        case ALLOC_TYPE_SLAB:
-            break;
-        case ALLOC_TYPE_HUGE:
-            break;
-        default:
-            break;
+        ptr = entry->strategy->get(entry->data.data_ptr.data_offset);
     }
     if(ptr)
         memset(ptr,0,size);

@@ -37,7 +37,8 @@ uint32_t nursery_realloc(uint32_t new_size, Handle handle);
  * Handles O(1) reverse/forward coalescing and bumps the frontier back if it's the last block.
  */
 void nursery_free(uint32_t offset);
-void* nursery_get(HandleEntry* entry);
+// void* nursery_get(HandleEntry* entry);
+void* nursery_get(uint32_t offset);
 Nursery* get_nursery_instance(void);
 
 #endif

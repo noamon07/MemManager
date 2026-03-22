@@ -1,12 +1,14 @@
 #include "Strategies/general.h"
 #include <string.h>
 #include <stdlib.h>
+#include "Strategies/strategy.h"
+
 
 #define GENERAL_START_SIZE (4096)
 
 static General general;
 static uint8_t initialized = 0;
-
+static Strategy strategy;
 
 int general_grow(General* allocator, uint32_t requested_size);
 int general_init(uint32_t initial_size)
@@ -28,6 +30,9 @@ int general_init(uint32_t initial_size)
 
         tlsf_insert(&general.tlsf, general.mem, GET_INDEX(first_block, general.mem));
         general.last_block_allocated = 0;
+        strategy.free = general_free;
+        strategy.realloc = general_realloc;
+        strategy.get = general_get;
         initialized = 1;
         return 1;
     }
@@ -41,6 +46,8 @@ void general_destroy(void)
     if(general.mem)
         free(general.mem);
     tlsf_clear(&general.tlsf);
+    strategy.free = NULL;
+    strategy.realloc = NULL;
     initialized = 0;
 }
 void general_merge_before(BaseHeader** _header)
@@ -120,11 +127,11 @@ uint32_t general_malloc(uint32_t size, Handle handle)
 {
     general_init(GENERAL_START_SIZE);
     if (!initialized || size == 0) return INVALID_DATA_OFFSET;
-
+    
     HandleEntry* entry = handle_table_get_entry(handle);
     if(!entry)
         return INVALID_DATA_OFFSET;
-
+    uint32_t og_size = size;
     size+=sizeof(BaseHeader);
     if(size<sizeof(FreeBlockHeader) + sizeof(BaseFooter))
         size = sizeof(FreeBlockHeader) + sizeof(BaseFooter);
@@ -137,6 +144,8 @@ uint32_t general_malloc(uint32_t size, Handle handle)
     }
     if (offset != INVALID_DATA_OFFSET)
     { 
+        entry->size = og_size;
+        entry->strategy = &strategy;
         BaseHeader* header = (BaseHeader*)(general.mem + offset);
         header->is_allocated = 1;
         header->handle = handle;
@@ -190,6 +199,7 @@ uint32_t general_realloc(uint32_t new_size, Handle handle)
         return general_malloc(new_size, handle);
 
     BaseHeader* header = (BaseHeader*)(general.mem + offset);
+    uint32_t og_new_size = new_size;
     new_size+=sizeof(BaseHeader);
     if(new_size<sizeof(FreeBlockHeader) + sizeof(BaseFooter))
         new_size = sizeof(FreeBlockHeader) + sizeof(BaseFooter);
@@ -198,6 +208,7 @@ uint32_t general_realloc(uint32_t new_size, Handle handle)
     if(new_size <= HEADER_SIZE_TO_BYTES(header->size))
     {
         general_trim_block(header,new_size);
+        entry->size = og_new_size;
         return GET_INDEX(header, general.mem);
     }
     BaseHeader* next = (BaseHeader*)((uint8_t*)header+HEADER_SIZE_TO_BYTES(header->size));
@@ -208,6 +219,7 @@ uint32_t general_realloc(uint32_t new_size, Handle handle)
         general_merge_after(header);
         general_trim_block(header,new_size);
         header->custom_flags=0;
+        entry->size = og_new_size;
         return offset;
     }
     uint32_t ptr_size = entry->size;
@@ -224,6 +236,7 @@ uint32_t general_realloc(uint32_t new_size, Handle handle)
             offset = GET_INDEX(header, general.mem);
             entry->data.data_ptr.data_offset = offset;
             header->custom_flags=0;
+            entry->size = og_new_size;
             return offset;
         }
     }
@@ -238,11 +251,9 @@ uint32_t general_realloc(uint32_t new_size, Handle handle)
 
 }
 
-void* general_get(HandleEntry* entry)
+void* general_get(uint32_t offset)
 {
-    if (entry->stratigy_id!=ALLOC_TYPE_GENERAL)
-        return NULL;
-    return general.mem + entry->data.data_ptr.data_offset + sizeof(BaseHeader);
+    return general.mem + offset + sizeof(BaseHeader);
 }
 
 General* get_general_instance(void)
