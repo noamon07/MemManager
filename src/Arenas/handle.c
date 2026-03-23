@@ -5,7 +5,6 @@
 
 #define INITIAL_SIZE (4096)
 
-// We'll define our own sentinel to avoid magic numbers
 static HandleTable table;
 static char initialized = 0;
 
@@ -141,7 +140,7 @@ int handle_table_grow() {
     memset(&new_entries[table.size], 0, table.size * sizeof(HandleEntry));
     uint32_t old_size = table.size;
     uint32_t new_size = old_size + table.size;
-    // Build the free list for the NEWLY added space
+    // Build the free list for the newly added space
     new_entries[new_size-1].data.next = table.head;
     for (uint32_t i = old_size; i < new_size-1; ++i) {
         new_entries[i].data.next = i + 1;

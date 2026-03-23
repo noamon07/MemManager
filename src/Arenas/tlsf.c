@@ -2,7 +2,7 @@
 #include <string.h>
 #include <stdio.h>
 
-/* Internal Helper: Maps a size to its First Level (fl) and Second Level (sl) bin */
+// Internal Helper: Maps a size to its First Level (fl) and Second Level (sl) bin 
 static void tlsf_mapping(uint32_t size, uint32_t* fl, uint32_t* sl) {
     *fl = 31 - __builtin_clz(size);
     *sl = (size >> (*fl - 4)) & 0xF;
@@ -28,10 +28,6 @@ void tlsf_clear(TLSFAllocator* tlsf) {
 
 void tlsf_insert(TLSFAllocator* tlsf, uint8_t* mem_base, uint32_t offset) {
     if (!tlsf || !mem_base || offset == INVALID_DATA_OFFSET) return;
-    if(offset==16)
-    {
-        printf("a");
-    }
     BaseHeader* header = (BaseHeader*)(mem_base + offset);
     uint32_t size = HEADER_SIZE_TO_BYTES(header->size);
     if(size< sizeof(FreeBlockHeader)+sizeof(BaseFooter))
@@ -59,18 +55,17 @@ void tlsf_remove(TLSFAllocator* tlsf, uint8_t* mem_base, uint32_t offset) {
     FreeBlockHeader* node = (FreeBlockHeader*)(mem_base + offset);
     if(HEADER_SIZE_TO_BYTES(node->header.size)<sizeof(FreeBlockHeader)+sizeof(BaseFooter))
         return;
-    /* Connect the previous free block to the next free block */
     if (node->prev_free != INVALID_DATA_OFFSET) {
         FreeBlockHeader* prev_node = (FreeBlockHeader*)(mem_base + node->prev_free);
         prev_node->next_free = node->next_free;
     } else {
-        /* We are the head of the list, update the array root */
+        // We are the head of the list, update the array root
         uint32_t fl, sl;
         uint32_t size = HEADER_SIZE_TO_BYTES(node->header.size);
         tlsf_mapping(size, &fl, &sl);
         tlsf->blocks[fl][sl] = node->next_free;
         
-        /* If the list is now empty, turn off the bitmap flags */
+        // If the list is now empty, turn off the bitmap flags
         if (tlsf->blocks[fl][sl] == INVALID_DATA_OFFSET) {
             tlsf->sl_bitmap[fl] &= ~(1U << sl);
             if (!tlsf->sl_bitmap[fl]) {
@@ -79,7 +74,6 @@ void tlsf_remove(TLSFAllocator* tlsf, uint8_t* mem_base, uint32_t offset) {
         }
     }
 
-    /* Connect the next free block to the previous free block */
     if (node->next_free != INVALID_DATA_OFFSET) {
         FreeBlockHeader* next_node = (FreeBlockHeader*)(mem_base + node->next_free);
         next_node->prev_free = node->prev_free;
@@ -105,14 +99,13 @@ uint32_t tlsf_find_and_remove(TLSFAllocator* tlsf, uint8_t* mem_base, uint32_t s
         sl = __builtin_ctz(tlsf->sl_bitmap[fl]);
     } 
     else {
-        /* No block large enough exists */
+        // No block large enough exists
         return INVALID_DATA_OFFSET;
     }
 
     uint32_t block_offset = tlsf->blocks[fl][sl];
-    if (block_offset == INVALID_DATA_OFFSET) return INVALID_DATA_OFFSET; /* Safety Catch */
+    if (block_offset == INVALID_DATA_OFFSET) return INVALID_DATA_OFFSET; // Safety Catch
 
-    /* Pull it out of the free lists */
     tlsf_remove(tlsf, mem_base, block_offset);
 
     return block_offset;

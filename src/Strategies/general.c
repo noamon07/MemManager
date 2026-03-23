@@ -39,7 +39,7 @@ int general_init(uint32_t initial_size)
     return 0;
 }
 
-void general_destroy(void)
+void general_destroy()
 {
     if(!initialized)
         return;
@@ -256,7 +256,7 @@ void* general_get(uint32_t offset)
     return general.mem + offset + sizeof(BaseHeader);
 }
 
-General* get_general_instance(void)
+General* get_general_instance()
 {
     return &general;
 }

@@ -19,7 +19,10 @@ int mm_init() {
 
 void mm_destroy()
 {
-    
+    if(!initialized)
+        return;
+    handle_table_destroy();
+    initialized = 0;
 }
 
 

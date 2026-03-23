@@ -15,7 +15,6 @@ static int nursery_defrag_callback(void* arena_context, BaseHeader* header, uint
     (void)arena_context;
     if (!header || !header->is_allocated) return 0;
 
-    /* --- CASE 1: Promotion (Generation 3+) --- */
     if (header->custom_flags >= NURSERY_PROMOTION_GENERATION) {
         if(nursury_promotion(header->handle))
         {
@@ -24,24 +23,19 @@ static int nursery_defrag_callback(void* arena_context, BaseHeader* header, uint
     }
     else
     {
-        /* 1. Increment its generation (it survived another cycle!) */
         header->custom_flags++;
     }
 
-    /* 2. Update the Global Handle Table with the NEW offset it is sliding to */
     HandleEntry* entry = handle_table_get_entry(header->handle);
     if(!entry)
         return 0;
     entry->data.data_ptr.data_offset = new_offset;
-
-    /* Return 1 tells bump_defrag to KEEP and SLIDE this block */
     return 1; 
 }
 int nursery_init(uint32_t initial_size)
 {
     if(initialized || initial_size == 0) return 0;
     
-    /* Hook up the bump allocator, passing the nursery pointer as context */
     if(bump_init(&nursery.bump, initial_size, nursery_defrag_callback, &nursery))
     {
         strategy.free = nursery_free;
@@ -78,10 +72,8 @@ uint32_t nursery_malloc(uint32_t size, Handle handle)
     size+=sizeof(BaseHeader);
     size = ALIGN(size);
 
-    /* Fast Path */
     uint32_t offset = bump_malloc(&nursery.bump, size, handle, 0);
 
-    /* Fallback: Defrag */
     if (offset == INVALID_DATA_OFFSET && (nursery.bump.mem_size - nursery.bump.alloc_memory >= size)) {
         bump_defrag(&nursery.bump);
         offset = bump_malloc(&nursery.bump, size, handle, 0);
@@ -258,7 +250,7 @@ void nursery_free(uint32_t offset)
     uint32_t block_size = HEADER_SIZE_TO_BYTES(header->size);
     offset = GET_INDEX(header, nursery.bump.mem);
 
-    /* The Rollback: If this is the absolute last block, safely pull the frontier back */
+    // The Rollback: If this is the absolute last block, safely pull the current index back
     if (offset + block_size >= nursery.bump.cur_index) {
         nursery.bump.cur_index = offset;
         return;
@@ -271,17 +263,12 @@ void nursery_free(uint32_t offset)
         PUT_FOOTER(header);
     }
 }
-// void* nursery_get(HandleEntry* entry)
-// {
-//     if (entry->stratigy_id!=ALLOC_TYPE_NURSERY)
-//         return NULL;
-//     return nursery.bump.mem + entry->data.data_ptr.data_offset + sizeof(BaseHeader);
-// }
+
 void* nursery_get(uint32_t offset)
 {
     return nursery.bump.mem + offset + sizeof(BaseHeader);
 }
-Nursery* get_nursery_instance(void)
+Nursery* get_nursery_instance()
 {
     return &nursery;
 }

@@ -32,7 +32,7 @@ void bump_destroy(BumpAllocator* bump) {
 uint32_t bump_malloc(BumpAllocator* bump, uint32_t size, Handle handle, uint32_t custom_flags) {
     if (!bump ||!bump->mem) return INVALID_DATA_OFFSET;
 
-    /* Guard: Check if we are out of bounds */
+    // Guard: Check if we are out of bounds
     if (bump->cur_index + size > bump->mem_size) {
         return INVALID_DATA_OFFSET; 
     }
@@ -41,7 +41,7 @@ uint32_t bump_malloc(BumpAllocator* bump, uint32_t size, Handle handle, uint32_t
     
     header->size = BYTES_TO_HEADER_SIZE(size);
     header->is_allocated = 1;
-    header->before_alloc = 1; /* In a bump allocator, packed blocks always mean the previous is alive/boundary */
+    header->before_alloc = 1; // In a bump allocator, packed blocks always mean the previous is alive/boundary
     header->custom_flags = custom_flags;
     header->handle = handle;
 
@@ -63,8 +63,6 @@ uint8_t bump_free(BumpAllocator* bump, uint32_t offset) {
     header->is_allocated = 0;
     bump->alloc_memory -= block_size;
 
-    /* Update the 'before_alloc' flag of the next physical block.
-       This enables TLSF/Arena to coalesce correctly later. */
     uint32_t next_offset = offset + block_size;
     if (next_offset < bump->cur_index) {
         BaseHeader* next_header = (BaseHeader*)(bump->mem + next_offset);
@@ -85,7 +83,7 @@ uint32_t bump_defrag(BumpAllocator* bump) {
         
         int keep_block = 0;
         if (header->is_allocated) {
-            /* Hand over to Nursery/Long-Lived arena logic to decide fate & update handles */
+            // Hand over to Nursery/Long-Lived strategy logic to decide fate & update handles
             keep_block = bump->defrag_cb(bump->arena_context, header, write_offset);
         }
         
@@ -94,7 +92,7 @@ uint32_t bump_defrag(BumpAllocator* bump) {
         }
         
         if (keep_block) {
-            /* Since we are sliding left, the previous block is guaranteed to be packed/alive */
+            // Since we are sliding left, the previous block is guaranteed to be packed/alive
             BaseHeader* moved_header = (BaseHeader*)(bump->mem + write_offset);
             moved_header->before_alloc = 1;
             write_offset += block_size;

@@ -9,7 +9,6 @@ int main() {
 
     run_nursery_tests();
     run_general_tests();
-    // test_gc_cyclic_leak();
 
     return 0;
 }

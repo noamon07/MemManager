@@ -12,7 +12,7 @@ typedef struct HandleEntry HandleEntry;
 typedef union
 {
     void *ptr; // Points to the user's data
-    uint32_t data_offset; // Index of the next free entry in the list
+    uint32_t data_offset; // offset to the users data
 } data_pos;
 
 
@@ -24,8 +24,6 @@ struct HandleEntry {
     uint32_t generation;
     Strategy* strategy;
     uint32_t size;
-    // A flag to know if the entry is in use or not.
-    // This simplifies logic compared to checking generation == 0.
     uint8_t is_allocated;
     uint8_t is_marked;
 };
@@ -48,4 +46,4 @@ void handle_table_free(Handle handle);
 int handle_table_grow();
 HandleTable *mm_get_handle_table_instance();
 
-#endif // HAND
+#endif

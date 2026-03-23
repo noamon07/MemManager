@@ -13,8 +13,6 @@ int nursury_promotion(Handle handle)
     uint32_t new_offset = general_malloc(ptr_size, handle);
     if(new_offset==INVALID_DATA_OFFSET) return 0;
     
-    // entry->stratigy_id = ALLOC_TYPE_GENERAL;
-    // void *new_ptr = general_get(entry);
     void *new_ptr = entry->strategy->get(new_offset);
     memmove(new_ptr,ptr,ptr_size);
     return 1;

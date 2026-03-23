@@ -4,4 +4,4 @@
 
 
 int nursury_promotion(Handle handle);
-#endif // PROMOTION_H
+#endif

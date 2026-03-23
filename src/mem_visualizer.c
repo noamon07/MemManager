@@ -45,14 +45,10 @@ void mem_dump(const void* data, size_t len) {
     }
 }
 
-/*
- * mm_visualize_nursery
- * Prints a map of the nursery arena.
- */
+
 void mm_visualize_nursery() {
     printf("================================ [ NURSERY ARENA ] ================================\n");
     
-    // Use the updated getter from your nursery implementation
     Nursery* nursery = get_nursery_instance(); 
     
     // Check the underlying bump allocator's memory pointer
@@ -71,18 +67,17 @@ void mm_visualize_nursery() {
 
     uint32_t current_offset = 0;
     
-    // Walk the contiguous blocks until we hit the frontier
+    // Walk the contiguous blocks until we hit the current index
     while (current_offset < nursery->bump.cur_index) {
-        // Cast directly to your actual BaseHeader struct
+        
         BaseHeader* header = (BaseHeader*)(nursery->bump.mem + current_offset);
         
-        // Use your native macro to get exact byte size
         uint32_t block_bytes = HEADER_SIZE_TO_BYTES(header->size);
         if (block_bytes == 0) {
             printf("[!] FATAL CORRUPTION: Block size is 0 at offset %08x!\n", current_offset);
             break;
         }
-        // Payload subtracts the Header AND the Footer
+        // Payload subtracts the Header
         uint32_t payload_size = block_bytes - sizeof(BaseHeader);
 
         // 1. Detailed Metadata Print
@@ -110,9 +105,7 @@ void mm_visualize_nursery() {
             printf("    [ FREE MEMORY HOLE ]\n");
         }
         
-        // 3. True Boundary Tag / Footer Reading
-        // Because you implemented PUT_FOOTER for both allocated and free blocks,
-        // we can safely read the footer for EVERY block now.
+        // 3.Boundary Tag / Footer Reading
         BaseFooter* real_footer = (BaseFooter*)((uint8_t*)header + block_bytes - sizeof(BaseFooter));
         printf("    Boundary Tag (Footer Size): %08x\n\n", *real_footer);
 
@@ -127,10 +120,9 @@ void mm_visualize_nursery() {
     }
     printf("===================================================================================\n\n");
 }
-/*
- * mm_visualize_general
- * Walks the physical memory of the contiguous General Arena and maps TLSF holes.
- */
+
+// Walks the physical memory of the contiguous General Arena and maps TLSF holes.
+
 void mm_visualize_general() {
     printf("================================ [ GENERAL ARENA ] ================================\n");
     
@@ -191,7 +183,7 @@ void mm_visualize_general() {
                    block_bytes, 
                    payload_size); 
                    
-            // Since it is free, we can peek inside the payload to see the TLSF linked list!
+            // Since it is free, we can peek inside the payload to see the TLSF linked list
             FreeBlockHeader* free_node = (FreeBlockHeader*)header;
             
             // Format INVALID_DATA_OFFSET nicely
@@ -203,14 +195,14 @@ void mm_visualize_general() {
             if (free_node->next_free == INVALID_DATA_OFFSET) printf("NONE    ]\n");
             else printf("%08x]\n", free_node->next_free);
 
-            // Free blocks ALWAYS have footers in our Freelist architecture
+            // Free blocks always have footers
             BaseFooter* real_footer = (BaseFooter*)((uint8_t*)header + block_bytes - sizeof(BaseFooter));
             printf("    Boundary Tag (Footer Size): %08x\n\n", *real_footer);
         }
 
         current_offset += block_bytes;
     }
-    /* --- TLSF INDEX DUMP --- */
+    // TLSF INDEX DUMP
     printf("\n[ TLSF FREE LIST HEADS ]\n");
     
     // Check if the entire allocator is full (no free blocks)
@@ -244,16 +236,12 @@ void mm_visualize_general() {
     }
     printf("===================================================================================\n\n");
 }
-/*
- * mm_visualize_allocator
- * The main visualization function.
- */
+
 void mm_visualize_allocator() {
     printf("\n--- MEMORY MANAGER VISUALIZATION ---\n");
     
     mm_visualize_nursery();
     mm_visualize_general();
-    // mm_visualize_long_lived(); // Ready for the TLSF visualizer
 
     printf("--- END VISUALIZATION ---\n\n");
 }

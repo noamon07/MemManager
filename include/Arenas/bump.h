@@ -4,14 +4,10 @@
 #include <stdint.h>
 #include "Arenas/arena.h"
 
-/* 
- * Callback triggered during sliding compaction.
- * header: The header of the block currently being processed.
- * new_offset: The index where this block is about to be moved to.
- * 
- * Return 1 to MOVE and KEEP the block in this arena.
- * Return 0 to DROP the block (e.g., it was promoted elsewhere or destroyed).
- */
+ 
+// Callback triggered during compaction.
+// Return 1 to MOVE and KEEP the block in this arena.
+// Return 0 to DROP the block (e.g., it was promoted elsewhere or destroyed).
 typedef int (*bump_defrag_cb)(void* arena_context, BaseHeader* header, uint32_t new_offset);
 
 typedef struct {
@@ -28,16 +24,16 @@ typedef struct {
 int bump_init(BumpAllocator* bump, uint32_t initial_size, bump_defrag_cb cb, void* context);
 void bump_destroy(BumpAllocator* bump);
 
-/* Core Allocation (Returns the offset index of the BaseHeader) */
+// Core Allocation (Returns the offset index of the BaseHeader)
 uint32_t bump_malloc(BumpAllocator* bump, uint32_t size, Handle handle, uint32_t custom_flags);
 
-/* Marks block as free and handles immediate rollback if it's the latest block */
+// Marks block as free
 uint8_t bump_free(BumpAllocator* bump, uint32_t offset);
 
-/* Triggers a sliding compaction. Returns the number of bytes reclaimed. */
+// Triggers a sliding compaction. Returns the number of bytes reclaimed.
 uint32_t bump_defrag(BumpAllocator* bump);
 
-/* Fallback growth logic */
+// Fallback growth logic
 int bump_grow(BumpAllocator* bump, uint32_t requested_size);
 
 #endif

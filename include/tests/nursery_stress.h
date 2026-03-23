@@ -1,14 +1,6 @@
 #ifndef NURSERY_STRESS_TESTS_H
 #define NURSERY_STRESS_TESTS_H
 
-/**
- * @brief Runs a comprehensive suite of stress tests on the nursery allocator.
- * 
- * This function executes a series of 12 specific tests designed to validate
- * the functionality, correctness, and robustness of the nursery allocator
- * under various conditions, including allocation, deallocation, reallocation,
- * defragmentation, and boundary cases.
- */
 void run_nursery_tests();
 void test_1_frontier_rollback();
 void test_2_bidirectional_coalesce();
@@ -23,4 +15,4 @@ void test_10_byte_alignment();
 void test_11_oom_fallback();
 void test_12_high_churn_stress();
 void test_13_realloc_payload_integrity();
-#endif // NURSERY_STRESS_TESTS_H
+#endif
