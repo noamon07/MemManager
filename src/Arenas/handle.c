@@ -6,7 +6,7 @@
 #define INITIAL_SIZE (4096)
 
 static HandleTable table;
-static char initialized = 0;
+static uint8_t initialized = 0;
 
 void handle_table_init(uint32_t initial_size) {
     if (initialized||initial_size == 0) {

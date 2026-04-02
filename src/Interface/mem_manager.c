@@ -1,60 +1,63 @@
 #include "Interface/mem_manager.h"
+#include "Interface/memory_manager_priv.h"
 #include "Arenas/handle.h" 
 #include "Strategies/nursery.h"
 #include <string.h>
+#include <stdlib.h>
 
 
 #define PAGE_SIZE (4096)
+typedef struct {
+    size_t max_size;
+    size_t current_usage;
+} MemoryManager;
+static MemoryManager manager;
 
-static int initialized = 0;
-
-int mm_init() {
-    if (initialized) return 0;
-
+int mm_init(size_t max_size)
+{
+    if (max_size == 0 || max_size < PAGE_SIZE) return 0;
+    manager.max_size = max_size;
     handle_table_init(PAGE_SIZE/sizeof(HandleEntry));
-    
-    initialized = 1;
+    manager.current_usage = PAGE_SIZE;
     return 1;
 }
 
 void mm_destroy()
 {
-    if(!initialized)
+    if(!manager.max_size)
         return;
     handle_table_destroy();
-    initialized = 0;
+    memset(&manager,0,sizeof(MemoryManager));
 }
 
 
-Handle mm_malloc(uint32_t size) {
-    Handle invalid_handle = {INVALID_INDEX, 0};
-
-    if ((!initialized && !mm_init())||size == 0) {
-        return invalid_handle;
+Handle mm_malloc(size_t size) {
+    if (!manager.max_size||size == 0) {
+        return INVALID_HANDLE;
     }
 
     Handle handle = handle_table_new(size);
-    if (handle.index == INVALID_INDEX) return invalid_handle;
+    if (handle.index == INVALID_INDEX) return INVALID_HANDLE;
     if(nursery_malloc(size,handle)!=INVALID_DATA_OFFSET)
     {
         HandleEntry* entry = handle_table_get_entry(handle);
         if(!entry)
-            return invalid_handle;
+            return INVALID_HANDLE;
         entry->size = size;
         return handle;
     }
     handle_table_free(handle);
-    return invalid_handle;
+    return INVALID_HANDLE;
 }
 
 void* mm_get_ptr(Handle handle) {
-    if (!initialized) return NULL;
+    if (!manager.max_size) return NULL;
 
     return handle_table_get_ptr(handle);
 }
 
 void mm_free(Handle handle) {
-    if (!initialized) return;
+    if (!manager.max_size) return;
 
     HandleEntry* entry = handle_table_get_entry(handle);
     if(!entry)
@@ -64,17 +67,15 @@ void mm_free(Handle handle) {
 
     handle_table_free(handle);
 }
-Handle mm_realloc(Handle handle, uint32_t new_size)
+Handle mm_realloc(Handle handle, size_t new_size)
 {
-    Handle invalid_handle = {INVALID_INDEX, 0};
-
-    if (!initialized && !mm_init()) {
-        return invalid_handle;
+    if (!manager.max_size) {
+        return INVALID_HANDLE;
     }
 
     HandleEntry* entry = handle_table_get_entry(handle);
     if(!entry)
-        return invalid_handle;
+        return INVALID_HANDLE;
 
     if(entry->strategy)
     {
@@ -84,10 +85,9 @@ Handle mm_realloc(Handle handle, uint32_t new_size)
             return handle;
         }
     }
-    return invalid_handle;
+    return INVALID_HANDLE;
 }
-Handle mm_calloc(uint32_t size) {
-    Handle invalid_handle = {INVALID_INDEX, 0};
+Handle mm_calloc(size_t size) {
     Handle handle = mm_malloc(size);
     if (handle.index == INVALID_INDEX) {
         return handle;
@@ -95,7 +95,7 @@ Handle mm_calloc(uint32_t size) {
 
     HandleEntry* entry = handle_table_get_entry(handle);
     if (!entry) {
-        return invalid_handle;
+        return INVALID_HANDLE;
     }
     void* ptr = NULL;
     if(entry->strategy)
@@ -106,4 +106,40 @@ Handle mm_calloc(uint32_t size) {
         memset(ptr,0,size);
     return handle;
 
+}
+void mem_set_ref(Handle parent, Handle child)
+{
+    (void)parent;
+    (void)child;
+}
+void mem_remove_ref(Handle parent, Handle child)
+{
+    (void)parent;
+    (void)child;
+}
+void* mm_request_region(size_t size)
+{
+    if (manager.current_usage + size > manager.max_size) {
+        return NULL;
+    }
+    
+    void* ptr = malloc(size);
+    if (ptr) {
+        manager.current_usage += size;
+    }
+    return ptr;
+}
+void* mm_resize_region(void* old_ptr, size_t old_size, size_t new_size)
+{
+    size_t growth = new_size - old_size;
+    if (manager.current_usage + growth > manager.max_size) {
+        return NULL; 
+    }
+
+    void* new_ptr = realloc(old_ptr, new_size);
+    
+    if (new_ptr) {
+        manager.current_usage += growth;
+    }
+    return new_ptr;
 }

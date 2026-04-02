@@ -7,19 +7,21 @@
 #include "Strategies/strategy.h"
 
 
-typedef struct HandleEntry HandleEntry;
-
-struct HandleEntry {
+typedef struct HandleEntry {
+    Strategy* strategy;
     union {
         uint32_t data_offset; // Points to the user's data
         uint32_t next; // Index of the next free entry in the list
     } data;
-    uint32_t generation;
-    Strategy* strategy;
     uint32_t size;
-    uint8_t is_allocated;
-    uint8_t is_marked;
-};
+    uint32_t root_scc;
+    uint32_t next_in_scc; // index of the next entry in the scc;
+    uint16_t in_degree;
+    uint8_t generation;
+    uint8_t is_allocated:1,
+            is_scc_suspect:1,
+            on_stack:1;
+} HandleEntry;
 
 typedef struct {
     HandleEntry *entries;

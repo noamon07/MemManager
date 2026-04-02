@@ -471,7 +471,7 @@ void run_nursery_tests() {
     printf("====================================================\n");
     printf("   GENERATIONAL HYBRID MEMORY MANAGER TEST SUITE    \n");
     printf("====================================================\n\n");
-
+    mm_init(4096);
     test_1_frontier_rollback();
     test_2_bidirectional_coalesce();
     test_3_inplace_shrink();
