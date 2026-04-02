@@ -67,7 +67,7 @@ void general_merge_before(BaseHeader** _header)
     {
         prev_header->handle = header->handle;
         HandleEntry* entry = handle_table_get_entry(prev_header->handle);
-        entry->data.data_ptr.data_offset = GET_INDEX(prev_header, general.mem);
+        entry->data.data_offset = GET_INDEX(prev_header, general.mem);
 
         prev_header->is_allocated = 1;
         prev_header->custom_flags = header->custom_flags;
@@ -161,7 +161,7 @@ uint32_t general_malloc(uint32_t size, Handle handle)
         {
             general.last_block_allocated = 1;
         }
-        entry->data.data_ptr.data_offset = offset;
+        entry->data.data_offset = offset;
     }
     return offset;
 }
@@ -194,7 +194,7 @@ uint32_t general_realloc(uint32_t new_size, Handle handle)
     HandleEntry* entry = handle_table_get_entry(handle);
     if(!entry)
         return INVALID_DATA_OFFSET;
-    uint32_t offset = entry->data.data_ptr.data_offset;
+    uint32_t offset = entry->data.data_offset;
     if(offset == INVALID_DATA_OFFSET)
         return general_malloc(new_size, handle);
 
@@ -234,7 +234,7 @@ uint32_t general_realloc(uint32_t new_size, Handle handle)
             memmove(header+1,ptr,ptr_size);
             general_trim_block(header,new_size);
             offset = GET_INDEX(header, general.mem);
-            entry->data.data_ptr.data_offset = offset;
+            entry->data.data_offset = offset;
             header->custom_flags=0;
             entry->size = og_new_size;
             return offset;

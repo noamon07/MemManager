@@ -60,7 +60,7 @@ void mm_free(Handle handle) {
     if(!entry)
         return;
 
-    entry->strategy->free(entry->data.data_ptr.data_offset);
+    entry->strategy->free(entry->data.data_offset);
 
     handle_table_free(handle);
 }
@@ -100,7 +100,7 @@ Handle mm_calloc(uint32_t size) {
     void* ptr = NULL;
     if(entry->strategy)
     {
-        ptr = entry->strategy->get(entry->data.data_ptr.data_offset);
+        ptr = entry->strategy->get(entry->data.data_offset);
     }
     if(ptr)
         memset(ptr,0,size);

@@ -71,7 +71,7 @@ void *handle_table_get_ptr(Handle handle) {
     }
     if(entry->strategy)
     {
-        return entry->strategy->get(entry->data.data_ptr.data_offset);
+        return entry->strategy->get(entry->data.data_offset);
     }
     return NULL;
 }

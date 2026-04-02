@@ -9,16 +9,9 @@
 
 typedef struct HandleEntry HandleEntry;
 
-typedef union
-{
-    void *ptr; // Points to the user's data
-    uint32_t data_offset; // offset to the users data
-} data_pos;
-
-
 struct HandleEntry {
     union {
-        data_pos data_ptr; // Points to the user's data
+        uint32_t data_offset; // Points to the user's data
         uint32_t next; // Index of the next free entry in the list
     } data;
     uint32_t generation;

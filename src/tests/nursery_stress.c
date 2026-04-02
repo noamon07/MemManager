@@ -20,7 +20,7 @@ Nursery* get_nursery() { return get_nursery_instance(); }
 BaseHeader* get_header(Handle h) {
     HandleEntry* entry = handle_table_get_entry(h);
     if (!entry) return NULL;
-    return (BaseHeader*)(get_nursery()->bump.mem + entry->data.data_ptr.data_offset);
+    return (BaseHeader*)(get_nursery()->bump.mem + entry->data.data_offset);
 }
 
 /* ========================================================================= */
@@ -62,7 +62,7 @@ void test_2_bidirectional_coalesce() {
     Handle h4 = mm_malloc(32); // Free 2
     Handle h5 = mm_malloc(32); // Lock frontier
 
-    uint32_t offset_h2 = handle_table_get_entry(h2)->data.data_ptr.data_offset;
+    uint32_t offset_h2 = handle_table_get_entry(h2)->data.data_offset;
     uint32_t size2 = HEADER_SIZE_TO_BYTES(get_header(h2)->size);
     uint32_t size3 = HEADER_SIZE_TO_BYTES(get_header(h3)->size);
     uint32_t size4 = HEADER_SIZE_TO_BYTES(get_header(h4)->size);
@@ -101,14 +101,14 @@ void test_3_inplace_shrink() {
     Handle h1 = mm_malloc(128);
     Handle hLock = mm_malloc(32); // Lock it in
 
-    uint32_t original_offset = handle_table_get_entry(h1)->data.data_ptr.data_offset;
+    uint32_t original_offset = handle_table_get_entry(h1)->data.data_offset;
     uint32_t starting_alloc = n->bump.alloc_memory;
 
     // Shrink the block
     mm_realloc(h1, 32);
 
     // Offset must not change (in-place)
-    assert(handle_table_get_entry(h1)->data.data_ptr.data_offset == original_offset);
+    assert(handle_table_get_entry(h1)->data.data_offset == original_offset);
     
     // Alloc memory MUST decrease because the scrap was freed
     assert(n->bump.alloc_memory < starting_alloc);
@@ -130,12 +130,12 @@ void test_4_frontier_expansion() {
     Nursery* n = get_nursery();
 
     Handle h1 = mm_malloc(32);
-    uint32_t original_offset = handle_table_get_entry(h1)->data.data_ptr.data_offset;
+    uint32_t original_offset = handle_table_get_entry(h1)->data.data_offset;
     // Because h1 is the last block, it should expand forward effortlessly
     mm_realloc(h1, 256);
 
     // Offset must NOT change, meaning no memmove was performed
-    assert(handle_table_get_entry(h1)->data.data_ptr.data_offset == original_offset);
+    assert(handle_table_get_entry(h1)->data.data_offset == original_offset);
     
     // Cur index should have advanced to cover the new size
     BaseHeader* header = get_header(h1);
@@ -159,14 +159,14 @@ void test_5_neighbor_absorption() {
     Handle h2 = mm_malloc(128); // The neighbor we will free
     Handle hLock = mm_malloc(32); 
 
-    uint32_t original_offset = handle_table_get_entry(h1)->data.data_ptr.data_offset;
+    uint32_t original_offset = handle_table_get_entry(h1)->data.data_offset;
     mm_free(h2); // Create a 128-byte hole
 
     // h1 only needs 64 bytes total, the 128 byte hole is right next to it
     mm_realloc(h1, 64);
 
     // Offset must not change, it just ate the hole
-    assert(handle_table_get_entry(h1)->data.data_ptr.data_offset == original_offset);
+    assert(handle_table_get_entry(h1)->data.data_offset == original_offset);
 
     mm_free(hLock);
     mm_free(h1);
@@ -186,12 +186,12 @@ void test_6_full_relocation() {
     Handle h1 = mm_malloc(32);
     Handle h2 = mm_malloc(32); // Locks h1 completely
     
-    uint32_t old_offset = handle_table_get_entry(h1)->data.data_ptr.data_offset;
+    uint32_t old_offset = handle_table_get_entry(h1)->data.data_offset;
 
     // Needs to grow, but is boxed in. Must relocate to frontier.
     mm_realloc(h1, 256);
 
-    uint32_t new_offset = handle_table_get_entry(h1)->data.data_ptr.data_offset;
+    uint32_t new_offset = handle_table_get_entry(h1)->data.data_offset;
     
     // The handle MUST have been updated to a new location
     assert(new_offset != old_offset);
@@ -226,8 +226,8 @@ void test_7_sliding_compaction() {
     bump_defrag(&n->bump);
 
     BaseHeader* head1 = get_header(h1);
-    uint32_t off1 = handle_table_get_entry(h1)->data.data_ptr.data_offset;
-    uint32_t off3 = handle_table_get_entry(h3)->data.data_ptr.data_offset;
+    uint32_t off1 = handle_table_get_entry(h1)->data.data_offset;
+    uint32_t off3 = handle_table_get_entry(h3)->data.data_offset;
     
     // h3 must now physically sit perfectly adjacent to h1
     assert(off3 == off1 + HEADER_SIZE_TO_BYTES(head1->size));
@@ -439,7 +439,7 @@ void test_13_realloc_payload_integrity() {
     // 1. Write a distinct byte pattern into h1's payload
     // Note: Use your engine's getter to get the actual payload pointer
     HandleEntry* entry1 = handle_table_get_entry(h1);
-    uint8_t* payload = (uint8_t*)(get_nursery()->bump.mem + entry1->data.data_ptr.data_offset + sizeof(BaseHeader));
+    uint8_t* payload = (uint8_t*)(get_nursery()->bump.mem + entry1->data.data_offset + sizeof(BaseHeader));
     
     for (int i = 0; i < 32; i++) {
         payload[i] = (uint8_t)(i & 0xFF); // Write 0, 1, 2, 3...
@@ -449,7 +449,7 @@ void test_13_realloc_payload_integrity() {
     mm_realloc(h1, 128);
 
     // 3. Get the NEW payload pointer
-    uint8_t* new_payload = (uint8_t*)(get_nursery()->bump.mem + entry1->data.data_ptr.data_offset + sizeof(BaseHeader));
+    uint8_t* new_payload = (uint8_t*)(get_nursery()->bump.mem + entry1->data.data_offset + sizeof(BaseHeader));
 
     // 4. Verify the data survived the memmove!
     for (int i = 0; i < 32; i++) {
