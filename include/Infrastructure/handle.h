@@ -16,6 +16,7 @@ typedef struct HandleEntry {
     uint32_t size;
     uint32_t root_scc;
     uint32_t next_in_scc; // index of the next entry in the scc;
+    uint32_t first_edge_offset;
     uint16_t in_degree;
     uint8_t generation;
     uint8_t is_allocated:1,
