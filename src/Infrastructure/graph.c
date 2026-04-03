@@ -27,9 +27,9 @@ int expand_edges_memory() {
 }
 
 
-void graph_init() {
+int graph_init() {
     slab_init(&edges_slab, sizeof(Edge));
-    expand_edges_memory();
+    return expand_edges_memory();
 }
 
 int graph_add_ref(Handle parent_handle, Handle child_handle)
@@ -41,7 +41,7 @@ int graph_add_ref(Handle parent_handle, Handle child_handle)
 
     uint32_t new_edge_offset = slab_alloc(&edges_slab, edges_memory_base);
     
-    if (new_edge_offset == INVALID_DATA_OFFSET) {
+    if (new_edge_offset == INVALID_INDEX) {
         if (!expand_edges_memory()) return 0; 
         new_edge_offset = slab_alloc(&edges_slab, edges_memory_base);
     }
@@ -64,13 +64,13 @@ int graph_remove_ref(Handle parent_handle, Handle child_handle) {
     if(!parent_entry || !child_entry)
         return 0;
     uint32_t current_offset = parent_entry->first_edge_offset;
-    uint32_t prev_offset = INVALID_DATA_OFFSET;
+    uint32_t prev_offset = INVALID_INDEX;
 
-    while (current_offset != INVALID_DATA_OFFSET) {
+    while (current_offset != INVALID_INDEX) {
         Edge* current_edge = (Edge*)(edges_memory_base + current_offset);
 
         if (!memcmp(&(current_edge->child_handle), &child_handle, sizeof(Handle))) {
-            if (prev_offset == INVALID_DATA_OFFSET) {
+            if (prev_offset == INVALID_INDEX) {
                 parent_entry->first_edge_offset = current_edge->next_edge_offset;
             } else {
                 Edge* prev_edge = (Edge*)(edges_memory_base + prev_offset);
@@ -90,24 +90,30 @@ int graph_remove_ref(Handle parent_handle, Handle child_handle) {
     return 0;
 }
 
-void graph_clear_all_refs(Handle parent_handle) {
+void graph_clear_all_refs(Handle parent_handle, FreeFunction free_fn)
+{
     HandleEntry* parent_entry = handle_table_get_entry(parent_handle);
     if(!parent_entry)
         return;
     uint32_t current_offset = parent_entry->first_edge_offset;
 
-    while (current_offset != INVALID_DATA_OFFSET) {
+    while (current_offset != INVALID_INDEX) {
         Edge* current_edge = (Edge*)(edges_memory_base + current_offset);
         Handle child = current_edge->child_handle;
         uint32_t next_offset = current_edge->next_edge_offset;
         HandleEntry* child_entry = handle_table_get_entry(child);
-        if(child_entry)
+        if(child_entry && child_entry->in_degree > 0)
+        {
             child_entry->in_degree--;
+            if (child_entry->in_degree == 0 && free_fn != NULL) {
+                free_fn(child);
+            }
+        }
 
         slab_free(&edges_slab, current_offset, edges_memory_base);
 
         current_offset = next_offset;
     }
 
-    parent_entry->first_edge_offset = INVALID_DATA_OFFSET;
+    parent_entry->first_edge_offset = INVALID_INDEX;
 }

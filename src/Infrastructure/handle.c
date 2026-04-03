@@ -8,6 +8,7 @@
 static HandleTable table;
 static uint8_t initialized = 0;
 
+
 void handle_table_init(uint32_t initial_size) {
     if (initialized||initial_size == 0) {
         return;
@@ -16,11 +17,10 @@ void handle_table_init(uint32_t initial_size) {
     table.size = (uint32_t)initial_size;
     table.head = 0;
 
-    // Initialize the free list manually
     table.entries[initial_size-1].data.next = INVALID_INDEX;
     for (uint32_t i = 0; i < table.size-1; ++i) {
-        // Link to the next entry
         table.entries[i].data.next = i + 1;
+        table.entries[i].first_edge_offset = INVALID_INDEX;
     }
     initialized = 1;
 }

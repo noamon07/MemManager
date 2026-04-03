@@ -2,6 +2,7 @@
 #include "Interface/memory_manager_priv.h"
 #include "Infrastructure/handle.h" 
 #include "Strategies/nursery.h"
+#include "Infrastructure/graph.h"
 #include <string.h>
 #include <stdlib.h>
 
@@ -15,7 +16,7 @@ static MemoryManager manager;
 
 int mm_init(size_t max_size)
 {
-    if (max_size == 0 || max_size < PAGE_SIZE) return 0;
+    if (max_size == 0 || max_size < PAGE_SIZE || !graph_init()) return 0;
     manager.max_size = max_size;
     handle_table_init(PAGE_SIZE/sizeof(HandleEntry));
     manager.current_usage = PAGE_SIZE;
@@ -63,8 +64,12 @@ void mm_free(Handle handle) {
     if(!entry)
         return;
 
-    entry->strategy->free(entry->data.data_offset);
+    entry->in_degree = 0; 
+    if(entry->strategy) {
+        entry->strategy->free(entry->data.data_offset);
+    }
 
+    graph_clear_all_refs(handle, mm_free);
     handle_table_free(handle);
 }
 Handle mm_realloc(Handle handle, size_t new_size)
@@ -109,13 +114,16 @@ Handle mm_calloc(size_t size) {
 }
 void mem_set_ref(Handle parent, Handle child)
 {
-    (void)parent;
-    (void)child;
+    if(graph_add_ref(parent,child))
+        return;
 }
 void mem_remove_ref(Handle parent, Handle child)
 {
-    (void)parent;
-    (void)child;
+    graph_remove_ref(parent,child);
+    HandleEntry* entry = handle_table_get_entry(child);
+    if(!entry || entry->in_degree)
+        return;
+    mm_free(child);
 }
 void* mm_request_region(size_t size)
 {
@@ -131,15 +139,29 @@ void* mm_request_region(size_t size)
 }
 void* mm_resize_region(void* old_ptr, size_t old_size, size_t new_size)
 {
-    size_t growth = new_size - old_size;
-    if (manager.current_usage + growth > manager.max_size) {
-        return NULL; 
-    }
+    if (new_size == old_size) return old_ptr;
 
-    void* new_ptr = realloc(old_ptr, new_size);
-    
-    if (new_ptr) {
-        manager.current_usage += growth;
+    if (new_size > old_size) {
+        uint32_t growth = new_size - old_size;
+        if (manager.current_usage + growth > manager.max_size) {
+            return NULL; 
+        }
+
+        void* new_ptr = realloc(old_ptr, new_size);
+        if (new_ptr) {
+            manager.current_usage += growth;
+        }
+        return new_ptr;
     }
-    return new_ptr;
+    else {
+        uint32_t shrinkage = old_size - new_size;
+        void* new_ptr = realloc(old_ptr, new_size);
+        
+        if (new_ptr) {
+            manager.current_usage -= shrinkage;
+            return new_ptr;
+        }
+        return old_ptr;
+    }
+    
 }

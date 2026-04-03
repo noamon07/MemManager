@@ -12,7 +12,6 @@ typedef struct {
     TLSFAllocator tlsf;
     char last_block_allocated;
 } General;
-
 // Initialize the arena, allocate its physical memory, and format the first massive free block
 int general_init(uint32_t initial_size);
 
