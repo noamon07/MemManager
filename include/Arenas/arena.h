@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include "Interface/mem_manager.h"
+#include "Infrastructure/handle.h"
 
 #define ALIGNMENT (8)
 #define ALIGN(size) (((size) + (ALIGNMENT-1)) & ~(ALIGNMENT-1))

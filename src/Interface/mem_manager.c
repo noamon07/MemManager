@@ -1,6 +1,6 @@
 #include "Interface/mem_manager.h"
 #include "Interface/memory_manager_priv.h"
-#include "Arenas/handle.h" 
+#include "Infrastructure/handle.h" 
 #include "Strategies/nursery.h"
 #include <string.h>
 #include <stdlib.h>

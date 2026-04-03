@@ -5,7 +5,7 @@
 #include <stdint.h>
 
 #include "Interface/mem_manager.h"
-#include "Arenas/handle.h"
+#include "Infrastructure/handle.h"
 #include "Strategies/nursery.h"
 #include "mem_visualizer.h"
 

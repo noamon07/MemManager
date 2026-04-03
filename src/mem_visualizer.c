@@ -1,6 +1,6 @@
 #include "mem_visualizer.h"
 #include "Strategies/nursery.h"
-#include "Arenas/handle.h"
+#include "Infrastructure/handle.h"
 #include "Strategies/general.h"
 #include "Arenas/tlsf.h"
 #include <stdio.h>

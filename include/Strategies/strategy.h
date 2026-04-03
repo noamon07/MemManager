@@ -1,6 +1,6 @@
 #ifndef STRATEGY_H
 #define STRATEGY_H
-#include "Arenas/handle.h"
+#include "Infrastructure/handle.h"
 
 typedef struct {
     uint32_t (*realloc)(uint32_t new_size, Handle handle);

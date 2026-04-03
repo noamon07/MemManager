@@ -3,7 +3,6 @@
 
 #include "Arenas/arena.h"
 #include "Arenas/bump.h"
-#include "Arenas/handle.h"
 
 #define NURSERY_PROMOTION_GENERATION 3
 

@@ -2,7 +2,6 @@
 #define GENERAL_H
 
 #include "Arenas/arena.h"
-#include "Arenas/handle.h"
 #include "Arenas/tlsf.h"
 
 typedef struct {
