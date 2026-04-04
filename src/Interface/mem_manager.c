@@ -165,3 +165,18 @@ void* mm_resize_region(void* old_ptr, size_t old_size, size_t new_size)
     }
     
 }
+Cursor mem_get_cursor(Handle handle)
+{
+    return (Cursor){handle, 0};
+}
+void _internal_write_handle(Cursor cur, void* ptr) {
+    (void)cur;
+    (void)ptr;
+}
+
+void _internal_write_data(Cursor cur, void* ptr, uint32_t size) {
+    uint8_t* payload = mm_get_ptr(cur.handle);
+    if (!payload) return;
+
+    memcpy(payload + cur.byte_offset, ptr, size);
+}
