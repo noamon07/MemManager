@@ -109,7 +109,7 @@ void dfs_visit(Handle handle)
         }
     }
 }
-void dfs(Handle handle)
+void scc_process_suspect(Handle handle)
 {
     HandleEntry* entry = handle_table_get_entry(handle);
     if(!entry)
