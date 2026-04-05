@@ -17,5 +17,7 @@ int graph_init();
 int graph_add_ref(Handle parent_handle, Handle child_handle);
 int graph_remove_ref(Handle parent_handle, Handle child_handle);
 void graph_clear_all_refs(Handle parent_handle, FreeFunction free_fn);
+Edge graph_get_first_edge(Handle handle);
+Edge graph_get_edge(uint32_t offset);
 
 #endif

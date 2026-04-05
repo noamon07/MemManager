@@ -117,3 +117,17 @@ void graph_clear_all_refs(Handle parent_handle, FreeFunction free_fn)
 
     parent_entry->first_edge_offset = INVALID_INDEX;
 }
+Edge graph_get_edge(uint32_t offset)
+{
+    if (offset == INVALID_INDEX) {
+        return (Edge){INVALID_HANDLE, INVALID_INDEX};
+    }
+    return *(Edge*)(edges_memory_base + offset);
+}
+Edge graph_get_first_edge(Handle handle)
+{
+    HandleEntry* entry = handle_table_get_entry(handle);
+    if(!entry)
+        return (Edge){INVALID_HANDLE, INVALID_INDEX};
+    return graph_get_edge(entry->first_edge_offset);
+}
