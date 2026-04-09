@@ -56,7 +56,6 @@ void* mm_get_ptr(Handle handle) {
 
     return handle_table_get_ptr(handle);
 }
-
 void mm_free(Handle handle) {
     if (!manager.max_size) return;
 
@@ -69,7 +68,7 @@ void mm_free(Handle handle) {
         entry->strategy->free(entry->data.data_offset);
     }
 
-    graph_clear_all_refs(handle, mm_free);
+    graph_free(handle, mm_free);
     handle_table_free(handle);
 }
 Handle mm_realloc(Handle handle, size_t new_size)

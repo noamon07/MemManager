@@ -8,6 +8,6 @@ int scc_finder_init(uint32_t max_suspect_nodes);
 
 void scc_finder_destroy();
 
-void scc_process_suspect(Handle handle);
+void recalculate_scc_subgraph(Handle start_handle);
 
 #endif

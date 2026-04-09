@@ -38,7 +38,6 @@ int stack_push(Stack* s, void* element) {
 int stack_pop(Stack* s, void* out_element) {
     if (s->count == 0) 
     {
-        out_element = NULL;
         return 0;
     }
 
@@ -53,7 +52,11 @@ int stack_pop(Stack* s, void* out_element) {
 
 int stack_top(Stack* s, void** out_element)
 {
-    if (s->count == 0) return 0;
+    if (s->count == 0)
+    {
+        *out_element = NULL;
+        return 0;
+    }
 
     *out_element = s->data + ((s->count - 1) * s->element_size);
     return 1;

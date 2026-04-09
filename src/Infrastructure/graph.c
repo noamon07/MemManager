@@ -90,7 +90,7 @@ int graph_remove_ref(Handle parent_handle, Handle child_handle) {
     return 0;
 }
 
-void graph_clear_all_refs(Handle parent_handle, FreeFunction free_fn)
+void graph_free(Handle parent_handle, FreeFunction free_fn)
 {
     HandleEntry* parent_entry = handle_table_get_entry(parent_handle);
     if(!parent_entry)
