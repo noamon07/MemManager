@@ -38,7 +38,7 @@ Handle mm_malloc(size_t size) {
     }
 
     Handle handle = handle_table_new(size);
-    if (handle.index == INVALID_INDEX) return INVALID_HANDLE;
+    if (!is_valid_handle(handle)) return INVALID_HANDLE;
     if(nursery_malloc(size,handle)!=INVALID_DATA_OFFSET)
     {
         HandleEntry* entry = handle_table_get_entry(handle);
@@ -93,8 +93,8 @@ Handle mm_realloc(Handle handle, size_t new_size)
 }
 Handle mm_calloc(size_t size) {
     Handle handle = mm_malloc(size);
-    if (handle.index == INVALID_INDEX) {
-        return handle;
+    if (!is_valid_handle(handle)) {
+        return INVALID_HANDLE;
     }
 
     HandleEntry* entry = handle_table_get_entry(handle);
@@ -113,8 +113,7 @@ Handle mm_calloc(size_t size) {
 }
 void mem_set_ref(Handle parent, Handle child)
 {
-    if(graph_add_ref(parent,child))
-        return;
+    graph_add_ref(parent,child);
 }
 void mem_remove_ref(Handle parent, Handle child)
 {
@@ -178,4 +177,13 @@ void _internal_write_data(Cursor cur, void* ptr, uint32_t size) {
     if (!payload) return;
 
     memcpy(payload + cur.byte_offset, ptr, size);
+}
+int handles_equal(Handle a, Handle b)
+{
+    return a.index == b.index && a.generation == b.generation;
+}
+int is_valid_handle(Handle h) 
+{
+    HandleEntry* entry = handle_table_get_entry(h);
+    return entry != NULL;
 }

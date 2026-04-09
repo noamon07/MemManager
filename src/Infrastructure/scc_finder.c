@@ -2,6 +2,7 @@
 #include "Arenas/stack.h"
 #include "Infrastructure/graph.h"
 #include "Infrastructure/handle.h"
+#include "Interface/mem_manager.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -51,8 +52,7 @@ void evaluate_scc_viability(Handle scc_representative)
     uint32_t total_in_degree = 0;
     uint32_t internal_edges = 0;
     Handle current_node = scc_representative;
-
-    while(current_node.index != INVALID_INDEX)
+    while(is_valid_handle(current_node))
     {
         HandleEntry* current_entry = handle_table_get_entry(current_node);
         if(current_entry)
@@ -60,12 +60,12 @@ void evaluate_scc_viability(Handle scc_representative)
             total_in_degree += current_entry->in_degree;
             Edge current_edge = graph_get_first_edge(current_node);
             
-            while(current_edge.child_handle.index != INVALID_INDEX) 
+            while(is_valid_handle(current_edge.child_handle)) 
             {
                 HandleEntry* child_entry = handle_table_get_entry(current_edge.child_handle);
                 if (child_entry && 
-                   ((child_entry->is_scc_root && current_edge.child_handle.index == scc_representative.index) || 
-                    (!child_entry->is_scc_root && child_entry->scc.root_scc.index == scc_representative.index)))
+                   ((child_entry->is_scc_root && handles_equal(current_edge.child_handle,scc_representative)) ||
+                   (!child_entry->is_scc_root && handles_equal(child_entry->scc.root_scc,scc_representative))))
                 {
                     internal_edges++;
                 }
@@ -75,7 +75,7 @@ void evaluate_scc_viability(Handle scc_representative)
         }
         else
         {
-            current_node.index = INVALID_INDEX;
+            current_node = INVALID_HANDLE;
         }
     }
 
@@ -85,7 +85,7 @@ void evaluate_scc_viability(Handle scc_representative)
     {
         Handle dead_node = scc_representative;
         
-        while (dead_node.index != INVALID_INDEX) 
+        while (is_valid_handle(dead_node)) 
         {
             HandleEntry* dead_entry = handle_table_get_entry(dead_node);
             if (dead_entry)
@@ -103,7 +103,7 @@ void evaluate_scc_viability(Handle scc_representative)
             }
             else
             {
-                dead_node.index = INVALID_INDEX; // Stop condition (no break needed)
+                dead_node = INVALID_HANDLE;
             }
         }
     }
@@ -137,7 +137,7 @@ void extract_scc_from_stack()
 
             if(discovery[current_node.index] == lowlinks[current_node.index])
             {
-                entry->next_in_scc.index = INVALID_INDEX;
+                entry->next_in_scc = INVALID_HANDLE;
                 is_root_found = 1;
             }
             else
@@ -150,7 +150,7 @@ void extract_scc_from_stack()
                 }
                 else
                 {
-                    entry->next_in_scc.index = INVALID_INDEX;
+                    entry->next_in_scc = INVALID_HANDLE;
                 }
             }
         }
@@ -192,7 +192,7 @@ void tarjan_dfs_visit(Handle start_node)
             Handle current_node = frame->Parent_handle;
             Edge current_edge = frame->edge_cursor;
 
-            if(current_edge.child_handle.index != INVALID_INDEX)
+            if(is_valid_handle(current_edge.child_handle))
             {
                 frame->edge_cursor = graph_get_edge(current_edge.next_edge_offset);
                 
@@ -241,7 +241,7 @@ void recalculate_scc_subgraph(Handle start_handle)
     HandleEntry* entry = handle_table_get_entry(start_handle);
     if(!entry) return;
 
-    if(!entry->is_scc_root && entry->scc.root_scc.index != INVALID_INDEX)
+    if(!entry->is_scc_root && is_valid_handle(entry->scc.root_scc))
     {
         start_handle = entry->scc.root_scc;
         entry = handle_table_get_entry(start_handle);
@@ -251,7 +251,7 @@ void recalculate_scc_subgraph(Handle start_handle)
     Handle current_old = start_handle;
     uint32_t pending_count = 0;
     
-    while(current_old.index != INVALID_INDEX)
+    while(is_valid_handle(current_old))
     {
         HandleEntry* old_entry = handle_table_get_entry(current_old);
         if (old_entry)
@@ -259,7 +259,7 @@ void recalculate_scc_subgraph(Handle start_handle)
             Handle next_old = old_entry->next_in_scc;
             
             old_entry->is_scc_root = 0;
-            old_entry->next_in_scc.index = INVALID_INDEX;
+            old_entry->next_in_scc = INVALID_HANDLE;
             discovery[current_old.index] = 0; 
             
             stack_push(&scc_stack, &current_old);
@@ -269,7 +269,7 @@ void recalculate_scc_subgraph(Handle start_handle)
         }
         else
         {
-            current_old.index = INVALID_INDEX;
+            current_old = INVALID_HANDLE;
         }
     }
         

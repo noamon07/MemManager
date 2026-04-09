@@ -124,7 +124,6 @@ void handle_table_free(Handle handle) {
     entry->is_allocated = 0;
     entry->generation++;
 
-    // Push to head of free list
     entry->data.next = table.head;
     table.head = handle.index;
 }

@@ -33,6 +33,6 @@ void mem_remove_ref(Handle parent, Handle child);
 Cursor mem_get_cursor(Handle handle);
 void _internal_write_data(Cursor cur, void* ptr, uint32_t size);
 void _internal_write_handle(Cursor cur, void* ptr);
-
-
+int handles_equal(Handle a, Handle b);
+int is_valid_handle(Handle h);
 #endif
