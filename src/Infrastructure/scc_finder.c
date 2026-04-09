@@ -5,7 +5,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-
+#ifndef MIN
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+#endif
 
 typedef struct {
     Handle Parent_handle;
@@ -45,10 +47,118 @@ void scc_finder_destroy()
     free(discovery);
     free(lowlinks);
 }
+void set_up_root_scc(Handle root_handle)
+{
+    HandleEntry* root_entry = handle_table_get_entry(root_handle);
+    if(!root_entry)
+        return;
+    uint32_t total_in_degree = 0;
+    uint32_t internal_edges = 0;
+    Handle current_handle = root_handle;
+    HandleEntry* current_entry = root_entry;
+    HandleEntry* current_edge_entry = NULL;
+    while(current_handle.index != INVALID_INDEX)
+    {
+        current_entry = handle_table_get_entry(current_handle);
+        if(current_entry)
+        {
+            total_in_degree+=current_entry->in_degree;
+            Edge e = graph_get_first_edge(current_handle);
+            while(e.child_handle.index != INVALID_INDEX) {
+                current_edge_entry = handle_table_get_entry(e.child_handle);
+                if(current_edge_entry && (current_edge_entry->is_scc_root || current_edge_entry->scc.root_scc.index == root_handle.index))
+                {
+                    internal_edges++;
+                }
+                e = graph_get_edge(e.next_edge_offset);
+            }
 
-// ==========================================
-// THE CORE ALGORITHM
-// ==========================================
+            current_handle = current_entry->next_in_scc;
+        }
+    }
+    root_entry->scc.external_in_degree = total_in_degree - internal_edges;
+    if (root_entry->scc.external_in_degree == 0) 
+    {
+        Handle current_dead = root_handle;
+        
+        while (current_dead.index != INVALID_INDEX) 
+        {
+            HandleEntry* dead_entry = handle_table_get_entry(current_dead);
+            
+            graph_clear_all_refs(current_dead, mm_free);
+            
+            if (dead_entry->strategy && dead_entry->strategy->free) {
+                dead_entry->strategy->free(dead_entry->data.data_offset);
+            }
+            Handle next = dead_entry->next_in_scc;
+            handle_table_free(current_dead);
+            current_dead = next;
+        }
+    }
+}
+void set_up_new_scc()
+{
+    Handle handle = INVALID_HANDLE;
+    Handle root_handle = INVALID_HANDLE;
+    Handle* parent_handle = NULL;
+    HandleEntry* entry = NULL;
+    int root_found = 0;
+    
+    if(stack_pop(&scc_stack, &root_handle))
+    {
+        entry = handle_table_get_entry(root_handle);
+        if(entry)
+        {
+            entry->is_on_scc_stack = 0;
+            entry->is_scc_root = 1;
+            if(discovery[root_handle.index] == lowlinks[root_handle.index])
+            {
+                entry->next_in_scc = INVALID_HANDLE;
+                root_found = 1;
+            }
+            else
+            {
+                parent_handle = &handle;
+                stack_top(&scc_stack, (void**)&parent_handle);
+                if(parent_handle)
+                {
+                    entry->next_in_scc = *parent_handle;
+                }
+            }
+        }
+    }
+    while(!root_found && stack_pop(&scc_stack, &handle))
+    {
+        entry = handle_table_get_entry(handle);
+        if(entry)
+        {
+            entry->is_on_scc_stack = 0;
+            entry->is_scc_root = 0;
+            entry->scc.root_scc = root_handle;
+            if(discovery[handle.index] == lowlinks[handle.index])
+            {
+                entry->next_in_scc = INVALID_HANDLE;
+                root_found = 1;
+            }
+            else
+            {
+                parent_handle = &handle;
+                stack_top(&scc_stack, (void**)&parent_handle);
+                entry = handle_table_get_entry(handle);
+                if(entry)
+                {
+                    entry->next_in_scc = *parent_handle;
+                }
+            }
+        }
+        else
+        {
+            root_found = 1;
+        }
+    }
+    set_up_root_scc(root_handle);
+    
+}
 void dfs_visit(Handle handle)
 {
     TarjanFrame* frame = NULL;
@@ -83,7 +193,7 @@ void dfs_visit(Handle handle)
             }
             else if(entry->is_on_scc_stack)
             {
-                lowlinks[handle.index] = lowlinks[next_handle.index] < lowlinks[handle.index] ? lowlinks[next_handle.index] : lowlinks[handle.index];
+                lowlinks[handle.index] = MIN(lowlinks[handle.index], discovery[next_handle.index]);
             }
         }
         else
@@ -91,20 +201,13 @@ void dfs_visit(Handle handle)
             stack_pop(&call_stack, frame);
             handle = frame->Parent_handle;
             TarjanFrame* parent_frame;
-            stack_top(&call_stack, (void**)&parent_frame);
-            if(lowlinks[handle.index] < lowlinks[parent_frame->Parent_handle.index])
+            if(stack_top(&call_stack, (void**)&parent_frame) && lowlinks[handle.index] < lowlinks[parent_frame->Parent_handle.index])
             {
                 lowlinks[parent_frame->Parent_handle.index] = lowlinks[handle.index];
             }
-            else if(discovery[handle.index] == lowlinks[handle.index])
+            if(discovery[handle.index] == lowlinks[handle.index])
             {
-                Handle popped_handle;
-                do
-                {
-                    stack_pop(&scc_stack, &popped_handle);
-                    entry = handle_table_get_entry(popped_handle);
-                    entry->is_on_scc_stack = 0;
-                } while (handle.index != popped_handle.index);
+                set_up_new_scc();
             }
         }
     }
