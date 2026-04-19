@@ -11,13 +11,13 @@ typedef struct {
     Handle child_handle; // The "Child" (where the pointer goes)
     uint32_t next_edge_offset;  // The next Edge in the linked list for the sam parent
 } Edge;
-typedef void (*FreeFunction)(Handle);
 
 int graph_init();
 int graph_add_ref(Handle parent_handle, Handle child_handle);
 int graph_remove_ref(Handle parent_handle, Handle child_handle);
-void graph_free(Handle parent_handle, FreeFunction free_fn);
+void graph_free(Handle parent_handle);
 Edge graph_get_first_edge(Handle handle);
 Edge graph_get_edge(uint32_t offset);
-
+Handle get_scc_root(Handle node);
+int graph_in_same_scc(Handle handle_a, Handle handle_b);
 #endif

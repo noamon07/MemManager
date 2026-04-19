@@ -3,6 +3,7 @@
 #include "Infrastructure/handle.h" 
 #include "Strategies/nursery.h"
 #include "Infrastructure/graph.h"
+#include "Infrastructure/scc_finder.h"
 #include <string.h>
 #include <stdlib.h>
 
@@ -68,7 +69,7 @@ void mm_free(Handle handle) {
         entry->strategy->free(entry->data.data_offset);
     }
 
-    graph_free(handle, mm_free);
+    graph_free(handle);
     handle_table_free(handle);
 }
 Handle mm_realloc(Handle handle, size_t new_size)

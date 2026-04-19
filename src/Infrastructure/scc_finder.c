@@ -15,6 +15,7 @@ typedef struct {
     Edge edge_cursor;
 } TarjanFrame;
 
+static uint32_t max_nodes;
 static Stack call_stack;
 static Stack scc_stack;
 static uint32_t* discovery = NULL;
@@ -28,6 +29,7 @@ int scc_finder_init(uint32_t max_suspect_nodes)
     discovery = (uint32_t*)calloc(max_suspect_nodes, sizeof(uint32_t));
     lowlinks = (uint32_t*)calloc(max_suspect_nodes, sizeof(uint32_t));
     fail |= !discovery || !lowlinks;
+    max_nodes = max_suspect_nodes;
     if(fail)
     {
         scc_finder_destroy();
@@ -92,13 +94,7 @@ void evaluate_scc_viability(Handle scc_representative)
             {
                 Handle next_dead = dead_entry->next_in_scc;
                 
-                graph_free(dead_node, mm_free);
-                
-                if (dead_entry->strategy && dead_entry->strategy->free) {
-                    dead_entry->strategy->free(dead_entry->data.data_offset);
-                }
-                
-                handle_table_free(dead_node);
+                mm_free(dead_node);
                 dead_node = next_dead;
             }
             else
@@ -290,4 +286,106 @@ void recalculate_scc_subgraph(Handle start_handle)
             pending_count = 0; 
         }
     }
+}
+int lightweight_bfs_search(Handle start_node, Handle target_node, Handle* out_path)
+{
+    uint32_t* memory_pool = (uint32_t*)call_stack.data;
+    Handle* bfs_queue   = (Handle*)memory_pool; 
+    Handle* bfs_parent  = (Handle*)(memory_pool + max_nodes);
+    uint32_t* bfs_visited = memory_pool + (2 * max_nodes);
+    
+    memset(bfs_visited, 0, max_nodes * sizeof(uint32_t));
+    uint32_t head = 0;
+    uint32_t tail = 0;
+
+    bfs_queue[tail++] = start_node;
+    bfs_visited[start_node.index] = 1;
+    bfs_parent[start_node.index] = INVALID_HANDLE;
+
+    int cycle_found = 0;
+
+    while (head < tail && !cycle_found)
+    {
+        Handle current_node = bfs_queue[head++]; 
+        
+        if (handles_equal(current_node, target_node)) {
+            cycle_found = 1;
+        }
+        else
+        {
+            if (is_valid_handle(current_node))
+            {
+                Edge e = graph_get_first_edge(current_node);
+                while (is_valid_handle(e.child_handle))
+                {
+                    if (bfs_visited[e.child_handle.index] == 0)
+                    {
+                        bfs_visited[e.child_handle.index] = 1;
+                        bfs_parent[e.child_handle.index] = current_node;
+                        bfs_queue[tail++] = e.child_handle;
+                    }
+                    e = graph_get_edge(e.next_edge_offset);
+                }
+            }
+        }
+    }
+
+    if (!cycle_found) return 0;
+
+    uint32_t path_length = 0;
+    Handle path_tracer = target_node;
+    while (is_valid_handle(path_tracer))
+    {
+        out_path[path_length++] = path_tracer;
+        path_tracer = bfs_parent[path_tracer.index];
+    }
+    
+    return path_length;
+}
+void notify_edge_added(Handle node_A, Handle node_B)
+{
+    Handle master_root = get_scc_root(node_B);
+    Handle target_root = get_scc_root(node_A);
+    
+    if (!is_valid_handle(master_root) || !is_valid_handle(target_root)) return;
+    if (handles_equal(master_root, target_root)) return;
+
+    Handle* exact_cycle_path = (Handle*)scc_stack.data; 
+    
+    int path_len = lightweight_bfs_search(node_B, node_A, exact_cycle_path);
+    if (path_len == 0) return;
+
+    HandleEntry* master_entry = handle_table_get_entry(master_root);
+
+    for (int i = 0; i < path_len; i++)
+    {
+        Handle node_on_path = exact_cycle_path[i];
+        Handle local_root = get_scc_root(node_on_path);
+        
+        if (!handles_equal(local_root, master_root))
+        {
+            Handle current_member = local_root;
+            Handle tail = INVALID_HANDLE;
+        
+            while (is_valid_handle(current_member))
+            {
+                HandleEntry* member_entry = handle_table_get_entry(current_member);
+                if (!member_entry) break;
+
+                member_entry->is_scc_root = 0;
+                member_entry->scc.root_scc = master_root;
+                
+                tail = current_member;
+                current_member = member_entry->next_in_scc;
+            }
+
+            if (is_valid_handle(tail))
+            {
+                HandleEntry* tail_entry = handle_table_get_entry(tail);
+                tail_entry->next_in_scc = master_entry->next_in_scc;
+                master_entry->next_in_scc = local_root;
+            }
+        }
+    }
+    evaluate_scc_viability(master_root);
 }
