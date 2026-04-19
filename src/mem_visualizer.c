@@ -379,7 +379,7 @@ void graph_visualize_edges_physical()
             printf("    -> Points to Child: %u | Next Edge Offset: %08x\n", 
                    edge->child_handle.index, 
                    edge->next_edge_offset);
-            
+            mem_dump(edge, sizeof(Edge));
             printf("\n");
         } 
         else 

@@ -204,3 +204,23 @@ void write_handle(Handle handle)
         return;
     root_entry->scc.external_in_degree++;
 }
+void clear_handle(Handle handle)
+{
+    HandleEntry* entry = handle_table_get_entry(handle);
+    if(!entry) return;
+    
+    // 1. Drop the raw incoming degree
+    entry->in_degree--;
+    
+    // 2. Drop the external anchor on the cluster
+    Handle root = get_scc_root(handle);
+    HandleEntry* root_entry = handle_table_get_entry(root);
+    if(!root_entry) return;
+    
+    root_entry->scc.external_in_degree--;
+    
+    // 3. If the cluster just lost its last anchor to reality, burn it down!
+    if (root_entry->scc.external_in_degree == 0) {
+        evaluate_scc_viability(root);
+    }
+}

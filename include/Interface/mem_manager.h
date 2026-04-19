@@ -36,4 +36,5 @@ void _internal_write_handle(Cursor cur, void* ptr);
 int handles_equal(Handle a, Handle b);
 int is_valid_handle(Handle h);
 void write_handle(Handle handle);
+void clear_handle(Handle handle);
 #endif

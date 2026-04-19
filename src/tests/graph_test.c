@@ -8,6 +8,7 @@
 #include "Infrastructure/handle.h"
 #include "Infrastructure/graph.h"
 #include "Infrastructure/scc_finder.h"
+#include "Arenas/slab.h"
 #include "mem_visualizer.h"
 
 /* --- Test Helper Macros --- */
@@ -194,6 +195,7 @@ void test_graph_5_complex_fracture() {
     TEST_START("5. Complex Fracture (Orphaned Sub-Cluster)");
     
     Handle anchor = create_graph_node();
+    write_handle(anchor);
     Handle a = create_graph_node();
     Handle b = create_graph_node();
     Handle c = create_graph_node();
@@ -218,7 +220,6 @@ void test_graph_5_complex_fracture() {
 
     HandleEntry* root_d = handle_table_get_entry(get_scc_root(d));
     assert(root_d->scc.external_in_degree == 1); // Only anchored by A -> D
-
     // Sever the arterial link between the two loops
     graph_remove_ref(a, d);
 
@@ -234,6 +235,99 @@ void test_graph_5_complex_fracture() {
     TEST_PASS();
 }
 
+void test_graph_6_high_churn_stress() {
+    mm_destroy();
+    mm_init(4096);
+    TEST_START("6. High-Churn Graph Topology Stress Test");
+    
+    #define CHURN_COUNT 500
+    Handle vm_registers[CHURN_COUNT];
+    for (int i = 0; i < CHURN_COUNT; i++) {
+        vm_registers[i] = (Handle){INVALID_INDEX, 0};
+    }
+
+    // Seed randomness for reproducibility
+    srand(1337);
+
+    for (int i = 0; i < 10000; i++) {
+        int slot = rand() % CHURN_COUNT;
+        int action = rand() % 4; // 4 possible chaotic actions
+        if (action == 0 || !is_valid_handle(vm_registers[slot])) {
+            // [ACTION 0: SPAWN & ROOT] 
+            // The script creates a new object and stores it in a variable.
+            if (is_valid_handle(vm_registers[slot])) {
+                clear_handle(vm_registers[slot]); // Drop old root
+            }
+            vm_registers[slot] = create_graph_node(); 
+            write_handle(vm_registers[slot]); // Pin the new root
+        } 
+        else if (action == 1) {
+            // [ACTION 1: TANGLE]
+            // Randomly connect two objects together.
+            int target = rand() % CHURN_COUNT;
+            if (is_valid_handle(vm_registers[target]) && slot != target) {
+                // This will constantly trigger BFS Soft-Merges!
+                graph_add_ref(vm_registers[slot], vm_registers[target]);
+            }
+        }
+        else if (action == 2) {
+            // [ACTION 2: FRACTURE]
+            // Randomly sever a connection.
+            int target = rand() % CHURN_COUNT;
+            if (is_valid_handle(vm_registers[target])) {
+                // graph_remove_ref safely ignores non-existent edges.
+                // If it cuts an internal edge, it triggers a Tarjan Rebuild!
+                graph_remove_ref(vm_registers[slot], vm_registers[target]);
+            }
+        }
+        else if (action == 3) {
+            // [ACTION 3: ABANDON]
+            // The variable goes out of scope. 
+            // The object might die instantly, OR it might survive because 
+            // another object from Action 1 is still pointing to it!
+            clear_handle(vm_registers[slot]);
+            vm_registers[slot] = (Handle){INVALID_INDEX, 0}; 
+        }
+    }
+    
+    // [THE MASS EXTINCTION EVENT]
+    // The game ends. Clear all remaining roots. 
+    for (int i = 0; i < CHURN_COUNT; i++) {
+        if (is_valid_handle(vm_registers[i])) {
+            clear_handle(vm_registers[i]);
+        }
+    }
+    
+    // [THE ULTIMATE VALIDATION]
+    // If your BFS, Tarjan's, Soft-Merges, and Demolition Checks work perfectly,
+    // the massive, tangled 500-node graph will completely collapse upon itself.
+    
+    // 1. Check the Edge Slab
+    extern Slab edges_slab;
+    extern void* edges_memory_base;
+    uint32_t active_edges = 0;
+    for (uint32_t i = 0; i < edges_slab.slab_size; i += sizeof(Edge)) {
+        Edge* e = (Edge*)((uint8_t*)edges_memory_base + i);
+        if (is_valid_handle(e->child_handle)) {
+            active_edges++;
+        }
+    }
+    // 2. Check the Handle Table
+    HandleTable* table = mm_get_handle_table_instance();
+    uint32_t active_nodes = 0;
+    for (uint32_t i = 0; i < table->size; i++) {
+        HandleEntry* entry = handle_table_get_entry_by_index(i);
+        if (entry && entry->is_allocated && entry->strategy != NULL) {
+            active_nodes++;
+        }
+    }
+    
+    // If these asserts pass, your engine is leak-proof.
+    assert(active_edges == 0 && "FATAL LEAK: Edges survived the extinction event!");
+    assert(active_nodes == 0 && "FATAL LEAK: Nodes survived the extinction event!");
+
+    TEST_PASS();
+}
 /* ========================================================================= */
 void run_graph_tests() {
     printf("====================================================\n");
@@ -247,6 +341,7 @@ void run_graph_tests() {
     test_graph_3_tarjan_fracture();
     test_graph_4_self_reference();
     test_graph_5_complex_fracture();
+    test_graph_6_high_churn_stress();
     mm_destroy();
     printf("====================================================\n");
     printf("           ALL GRAPH TESTS PASSED!                  \n");

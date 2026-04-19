@@ -14,7 +14,7 @@ void slab_init(Slab* slab, uint32_t obj_size)
 void slab_change_region(Slab* slab, uint32_t new_region_size, void* memory_base)
 {
     if (new_region_size <= slab->slab_size) return;
-    void* slot_ptr = memory_base + (new_region_size - slab->object_size);
+    void* slot_ptr = memory_base + (new_region_size - slab->slab_size);
     // Iterate backwards through the NEW slots so the lowest index becomes the head
     for (; slot_ptr >= memory_base + slab->slab_size; slot_ptr = (void*)slot_ptr - slab->object_size)
     {

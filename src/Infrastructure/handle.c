@@ -58,6 +58,7 @@ Handle handle_table_new(uint32_t ptr_size){
     entry->is_allocated = 1;
     entry->is_scc_root = 1;
     entry->scc.external_in_degree = 0;
+    entry->first_edge_offset = INVALID_INDEX;
     entry->next_in_scc = INVALID_HANDLE;
 
     return (Handle){ index, entry->generation };
