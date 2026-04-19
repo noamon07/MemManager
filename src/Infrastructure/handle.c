@@ -56,6 +56,9 @@ Handle handle_table_new(uint32_t ptr_size){
     table.head = entry->data.next;
     entry->size = ptr_size;
     entry->is_allocated = 1;
+    entry->is_scc_root = 1;
+    entry->scc.external_in_degree = 0;
+    entry->next_in_scc = INVALID_HANDLE;
 
     return (Handle){ index, entry->generation };
 }

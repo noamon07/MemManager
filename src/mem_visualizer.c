@@ -3,6 +3,8 @@
 #include "Infrastructure/handle.h"
 #include "Strategies/general.h"
 #include "Arenas/tlsf.h"
+#include "Infrastructure/graph.h"
+#include "Arenas/slab.h"
 #include <stdio.h>
 #include <stdint.h>
 #include <ctype.h>
@@ -235,6 +237,242 @@ void mm_visualize_general() {
                current_offset - general->mem_size);
     }
     printf("===================================================================================\n\n");
+}
+extern Slab edges_slab;
+extern void* edges_memory_base;
+
+void mm_visualize_handle_table() 
+{
+    printf("================================ [ HANDLE TABLE (PHYSICAL) ] ============================\n");
+    
+    HandleTable* table = mm_get_handle_table_instance(); 
+    if (!table || table->size == 0) {
+        printf("Handle Table not initialized.\n");
+        printf("=========================================================================================\n\n");
+        return;
+    }
+
+    uint32_t max_handles = table->size;
+    uint32_t live_nodes = 0;
+    
+    uint32_t consecutive_free_count = 0;
+    uint32_t free_streak_start = 0;
+
+    for (uint32_t i = 0; i < max_handles; i++) 
+    {
+        HandleEntry* entry = handle_table_get_entry_by_index(i);
+        
+        if (!entry) continue; 
+        
+        // Only dump full data for handles that are currently alive
+        if (entry->is_allocated) 
+        {
+            // 1. If we were riding a streak of free blocks, print the truncated summary FIRST
+            if (consecutive_free_count > 0) {
+                printf("[INDEX: %04u TO %04u] ... [ %u FREE FREELIST HANDLES TRUNCATED ] ...\n\n", 
+                       free_streak_start, 
+                       i - 1, 
+                       consecutive_free_count);
+                consecutive_free_count = 0;
+            }
+
+            live_nodes++;
+            
+            printf("[INDEX: %04u] [GEN: %3u] [ *** ALLOCATED HANDLE *** ]\n", i, entry->generation);
+            
+            // --- MEMORY ROUTING INFO ---
+            printf("    Memory: Strategy=%p | Data Offset=%08x | Size=%u bytes\n", 
+                   (void*)entry->strategy, 
+                   entry->data.data_offset, 
+                   entry->size);
+            
+            // --- GRAPH TOPOLOGY INFO ---
+            printf("    Graph : In-Degree=%-5u | First Edge Offset=%08x\n", 
+                   entry->in_degree, 
+                   entry->first_edge_offset);
+            
+            // --- SCC CLUSTER INFO (Handles the Union safely based on is_scc_root) ---
+            if (entry->is_scc_root) {
+                printf("    SCC   : [ROOT] External In-Degree=%-5u | Next-In-SCC=[Idx:%u Gen:%u]\n", 
+                       entry->scc.external_in_degree, 
+                       entry->next_in_scc.index, 
+                       entry->next_in_scc.generation);
+            } else {
+                printf("    SCC   : [MEMBER] Root-SCC=[Idx:%u Gen:%u] | Next-In-SCC=[Idx:%u Gen:%u]\n", 
+                       entry->scc.root_scc.index, 
+                       entry->scc.root_scc.generation,
+                       entry->next_in_scc.index, 
+                       entry->next_in_scc.generation);
+            }
+
+            // --- BITFIELD FLAGS ---
+            printf("    Flags : [Alloc:%d] [SCC_Root:%d] [SCC_Suspect:%d] [On_SCC_Stack:%d]\n",
+                   entry->is_allocated, 
+                   entry->is_scc_root, 
+                   entry->is_scc_suspect, 
+                   entry->is_on_scc_stack);
+            
+            // Optional: If you still want the raw hex dump of the 32-byte struct, uncomment this:
+            // mem_dump(entry, sizeof(HandleEntry));
+            
+            printf("\n");
+        } 
+        else 
+        {
+            // The slot is free. Just quietly increment the streak counter.
+            if (consecutive_free_count == 0) {
+                free_streak_start = i;
+            }
+            consecutive_free_count++;
+        }
+    }
+    
+    // Catch any trailing free slots at the very end of the array
+    if (consecutive_free_count > 0) {
+        printf("[INDEX: %04u TO %04u] ... [ %u FREE FREELIST HANDLES TRUNCATED ] ...\n\n", 
+               free_streak_start, 
+               max_handles - 1, 
+               consecutive_free_count);
+    }
+
+    printf("--- Handle Table Stats: %u Live Objects / %u Capacity ---\n", live_nodes, max_handles);
+    printf("=========================================================================================\n\n");
+}
+
+void graph_visualize_edges_physical() 
+{
+    printf("================================ [ EDGES SLAB (PHYSICAL) ] ==============================\n");
+    
+    if (!edges_memory_base || edges_slab.slab_size == 0) {
+        printf("Edges Slab not initialized.\n");
+        printf("=========================================================================================\n\n");
+        return;
+    }
+
+    printf("Edges Slab State: Start=%p, Total Size=%08x (Capacity: %lu edges)\n\n", 
+           edges_memory_base, 
+           edges_slab.slab_size,
+           (unsigned long)(edges_slab.slab_size / sizeof(Edge)));
+
+    uint32_t current_offset = 0;
+    uint32_t consecutive_free_count = 0;
+    uint32_t free_streak_start_offset = 0;
+    
+    while (current_offset < edges_slab.slab_size) 
+    {
+        Edge* edge = (Edge*)((uint8_t*)edges_memory_base + current_offset);
+        
+        // If child_handle is valid, the slot is currently housing live edge data
+        if (is_valid_handle(edge->child_handle)) 
+        {
+            // 1. If we were riding a streak of free blocks, print the truncated summary FIRST
+            if (consecutive_free_count > 0) {
+                printf("[OFFSET: %08x TO %08x] ... [ %u FREE SLAB SLOTS TRUNCATED ] ...\n\n", 
+                       free_streak_start_offset, 
+                       current_offset - (uint32_t)sizeof(Edge), 
+                       consecutive_free_count);
+                consecutive_free_count = 0; // Reset the streak
+            }
+
+            // 2. Print the live allocated block
+            printf("[OFFSET: %08x] [BLOCK_SIZE: %08zx] [ *** ALLOCATED EDGE *** ]\n", current_offset, sizeof(Edge));
+            printf("    -> Points to Child: %u | Next Edge Offset: %08x\n", 
+                   edge->child_handle.index, 
+                   edge->next_edge_offset);
+            
+            printf("\n");
+        } 
+        else 
+        {
+            // The slot is free. Just quietly increment the streak counter.
+            if (consecutive_free_count == 0) {
+                free_streak_start_offset = current_offset;
+            }
+            consecutive_free_count++;
+        }
+
+        current_offset += sizeof(Edge);
+    }
+    
+    // Catch any trailing free slots at the very end of the Slab memory block
+    if (consecutive_free_count > 0) {
+        printf("[OFFSET: %08x TO %08x] ... [ %u FREE SLAB SLOTS TRUNCATED ] ...\n\n", 
+               free_streak_start_offset, 
+               current_offset - (uint32_t)sizeof(Edge), 
+               consecutive_free_count);
+    }
+    
+    printf("=========================================================================================\n\n");
+}
+void graph_visualize_scc_clusters() 
+{
+    printf("================================ [ SCC CLUSTER TOPOLOGY ] ===============================\n");
+    
+    HandleTable* table = mm_get_handle_table_instance(); 
+    if (!table || table->size == 0) {
+        printf("Handle Table not initialized.\n");
+        printf("=========================================================================================\n\n");
+        return;
+    }
+
+    uint32_t total_clusters = 0;
+    uint32_t max_handles = table->size;
+
+    for (uint32_t i = 0; i < max_handles; i++) 
+    {
+        HandleEntry* root_entry = handle_table_get_entry_by_index(i);
+        
+        // Only process live nodes that are explicitly marked as SCC Roots
+        if (!root_entry || !root_entry->is_allocated || !root_entry->is_scc_root) continue;
+        
+        total_clusters++;
+        
+        printf("====================================================\n");
+        printf("|| CLUSTER ROOT: %04u | EXTERNAL IN_DEGREE: %-3u  ||\n", i, root_entry->scc.external_in_degree);
+        printf("====================================================\n");
+        
+        if (root_entry->scc.external_in_degree == 0) {
+            printf("|| [!] DEAD CLUSTER (Pending Destruction)         ||\n");
+        }
+
+        // Loop through the linked list to show all nodes trapped in this cluster
+        printf("   Members: ");
+        
+        // Start traversal at the root
+        Handle current_member = {i, root_entry->generation}; 
+        uint32_t cluster_size = 0;
+        
+        while (is_valid_handle(current_member)) 
+        {
+            printf("[%04u] ", current_member.index);
+            cluster_size++;
+            
+            HandleEntry* member_entry = handle_table_get_entry(current_member);
+            if (!member_entry) break;
+            
+            // Draw arrows between members for readability
+            if (is_valid_handle(member_entry->next_in_scc)) {
+                printf("~~> ");
+            }
+            
+            current_member = member_entry->next_in_scc;
+        }
+        
+        printf("\n   Cluster Size: %u object(s)\n\n", cluster_size);
+    }
+    
+    printf("--- Engine Tracking %u Isolated Clusters ---\n", total_clusters);
+    printf("=========================================================================================\n\n");
+}
+void graph_visualize_all() 
+{
+    printf("\n>>> INITIALIZING GRAPH MEMORY VISUALIZATION <<<\n\n");
+    
+    mm_visualize_handle_table();
+    graph_visualize_edges_physical();
+    graph_visualize_scc_clusters();
+    
+    printf(">>> END GRAPH VISUALIZATION <<<\n\n");
 }
 
 void mm_visualize_allocator() {

@@ -35,4 +35,5 @@ void _internal_write_data(Cursor cur, void* ptr, uint32_t size);
 void _internal_write_handle(Cursor cur, void* ptr);
 int handles_equal(Handle a, Handle b);
 int is_valid_handle(Handle h);
+void write_handle(Handle handle);
 #endif

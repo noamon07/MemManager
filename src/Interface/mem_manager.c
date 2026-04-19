@@ -9,6 +9,8 @@
 
 
 #define PAGE_SIZE (4096)
+#define MAX_SUSPECT_NODES (1024)
+
 typedef struct {
     size_t max_size;
     size_t current_usage;
@@ -21,6 +23,8 @@ int mm_init(size_t max_size)
     manager.max_size = max_size;
     handle_table_init(PAGE_SIZE/sizeof(HandleEntry));
     manager.current_usage = PAGE_SIZE;
+    graph_init();
+    scc_finder_init(MAX_SUSPECT_NODES);
     return 1;
 }
 
@@ -187,4 +191,16 @@ int is_valid_handle(Handle h)
 {
     HandleEntry* entry = handle_table_get_entry(h);
     return entry != NULL;
+}
+void write_handle(Handle handle)
+{
+    HandleEntry* entry = handle_table_get_entry(handle);
+    if(!entry)
+        return;
+    entry->in_degree++;
+    Handle root = get_scc_root(handle);
+    HandleEntry* root_entry = handle_table_get_entry(root);
+    if(!root_entry)
+        return;
+    root_entry->scc.external_in_degree++;
 }

@@ -353,7 +353,12 @@ void notify_edge_added(Handle node_A, Handle node_B)
     Handle* exact_cycle_path = (Handle*)scc_stack.data; 
     
     int path_len = lightweight_bfs_search(node_B, node_A, exact_cycle_path);
-    if (path_len == 0) return;
+    if (path_len == 0)
+    {
+        HandleEntry* master_entry = handle_table_get_entry(master_root);
+        master_entry->scc.external_in_degree++;
+        return;
+    }
 
     HandleEntry* master_entry = handle_table_get_entry(master_root);
 

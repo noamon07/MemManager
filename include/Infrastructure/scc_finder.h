@@ -11,5 +11,5 @@ void scc_finder_destroy();
 void recalculate_scc_subgraph(Handle start_handle);
 
 void notify_edge_added(Handle node_A, Handle node_B);
-
+void evaluate_scc_viability(Handle scc_representative);
 #endif
