@@ -5,6 +5,7 @@
 #include <stdint.h>
 #ifndef INVALID_DATA_OFFSET
 #define INVALID_DATA_OFFSET ((uint32_t)-1)
+#define INVALID_EDGE (Edge){INVALID_HANDLE, INVALID_DATA_OFFSET}
 #endif
 
 typedef struct {

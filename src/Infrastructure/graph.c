@@ -42,7 +42,7 @@ int graph_add_ref(Handle parent_handle, Handle child_handle)
 
     uint32_t new_edge_offset = slab_alloc(&edges_slab, edges_memory_base);
     
-    if (new_edge_offset == INVALID_INDEX) {
+    if (new_edge_offset == INVALID_DATA_OFFSET) {
         if (!expand_edges_memory()) return 0; 
         new_edge_offset = slab_alloc(&edges_slab, edges_memory_base);
     }
@@ -126,13 +126,13 @@ int graph_remove_ref(Handle parent_handle, Handle child_handle) {
     if(!parent_entry || !child_entry)
         return 0;
     uint32_t current_offset = parent_entry->first_edge_offset;
-    uint32_t prev_offset = INVALID_INDEX;
+    uint32_t prev_offset = INVALID_DATA_OFFSET;
 
-    while (current_offset != INVALID_INDEX) {
+    while (current_offset != INVALID_DATA_OFFSET) {
         Edge* current_edge = (Edge*)(edges_memory_base + current_offset);
         if(handles_equal(current_edge->child_handle, child_handle))
         {
-            if (prev_offset == INVALID_INDEX) {
+            if (prev_offset == INVALID_DATA_OFFSET) {
                 parent_entry->first_edge_offset = current_edge->next_edge_offset;
             } 
             else
@@ -161,7 +161,7 @@ void graph_free(Handle parent_handle)
         return;
     uint32_t current_offset = parent_entry->first_edge_offset;
 
-    while (current_offset != INVALID_INDEX) {
+    while (current_offset != INVALID_DATA_OFFSET) {
         Edge* current_edge = (Edge*)(edges_memory_base + current_offset);
         Handle child_handle = current_edge->child_handle;
         uint32_t next_offset = current_edge->next_edge_offset;
@@ -176,8 +176,8 @@ void graph_free(Handle parent_handle)
 }
 Edge graph_get_edge(uint32_t offset)
 {
-    if (offset == INVALID_INDEX) {
-        return (Edge){INVALID_HANDLE, INVALID_INDEX};
+    if (offset == INVALID_DATA_OFFSET) {
+        return INVALID_EDGE;
     }
     return *(Edge*)(edges_memory_base + offset);
 }
@@ -185,6 +185,6 @@ Edge graph_get_first_edge(Handle handle)
 {
     HandleEntry* entry = handle_table_get_entry(handle);
     if(!entry)
-        return (Edge){INVALID_HANDLE, INVALID_INDEX};
+        return INVALID_EDGE;
     return graph_get_edge(entry->first_edge_offset);
 }

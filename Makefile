@@ -7,8 +7,7 @@ CC := gcc
 # --- PATHS ---
 # Adding -Iinclude lets you use #include <header.h> instead of relative paths
 COMMON_CFLAGS := -Wall -Werror -Wextra -Iinclude -D_strdup=strdup
-LDFLAGS := -lm
-
+LDFLAGS := -lraylib -lGL -lm -lpthread -ldl -lrt -lX11
 # --- Configuration Specifics ---
 ifeq ($(CONFIG), debug)
     OUTDIR := out/debug
