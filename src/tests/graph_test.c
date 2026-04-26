@@ -143,9 +143,9 @@ void test_graph_3_tarjan_fracture() {
     graph_add_ref(c, a);
     // FRACTURE THE CYCLE: Delete B -> C
     graph_remove_ref(b, c);
+
     // C is now completely orphaned from the graph. It must die.
     assert(is_dead(c) == 1);
-
     // A and B survive because (Anchor -> A -> B) still exists!
     assert(is_dead(a) == 0);
     assert(is_dead(b) == 0);
@@ -204,7 +204,7 @@ void test_graph_5_complex_fracture() {
 
     // Loop 1: Anchor -> A -> B -> C -> A
     graph_add_ref(anchor, a);
-    graph_add_ref(a, b);
+    graph_add_ref(a, b); // A->B,D . B->C. C->A. D->E. E->D
     graph_add_ref(b, c);
     graph_add_ref(c, a);
 
@@ -215,6 +215,7 @@ void test_graph_5_complex_fracture() {
 
     // Verify they correctly identified as two separate clusters
     assert(handles_equal(get_scc_root(a), get_scc_root(b)));
+    graph_visualize_all();
     assert(handles_equal(get_scc_root(d), get_scc_root(e)));
     assert(!handles_equal(get_scc_root(a), get_scc_root(d))); 
 

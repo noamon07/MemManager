@@ -11,14 +11,14 @@ static uint8_t initialized = 0;
 static Strategy strategy;
 
 int general_grow(General* allocator, uint32_t requested_size);
-int general_init(uint32_t initial_size)
+General* general_init(uint32_t initial_size)
 {
     if(initialized || initial_size == 0) return 0;
     if(tlsf_init(&general.tlsf))
     {
         general.mem = (uint8_t*)malloc(initial_size);
         if(!general.mem)
-            return 0;
+            return NULL;
         general.mem_size = initial_size;
         general.alloc_memory = 0;
 
@@ -34,9 +34,9 @@ int general_init(uint32_t initial_size)
         strategy.realloc = general_realloc;
         strategy.get = general_get;
         initialized = 1;
-        return 1;
+        return &general;
     }
-    return 0;
+    return NULL;
 }
 
 void general_destroy()
@@ -125,7 +125,6 @@ void general_trim_block(BaseHeader* header, uint32_t new_size)
 
 uint32_t general_malloc(uint32_t size, Handle handle)
 {
-    general_init(GENERAL_START_SIZE);
     if (!initialized || size == 0) return INVALID_DATA_OFFSET;
     
     HandleEntry* entry = handle_table_get_entry(handle);
@@ -188,7 +187,6 @@ void general_free(uint32_t offset)
 
 uint32_t general_realloc(uint32_t new_size, Handle handle)
 {
-    general_init(GENERAL_START_SIZE);
     if(!initialized)
         return INVALID_DATA_OFFSET;
     HandleEntry* entry = handle_table_get_entry(handle);

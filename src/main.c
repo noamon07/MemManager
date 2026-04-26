@@ -49,20 +49,20 @@ void* AllocationTestThread(void* arg) {
 }
 
 int main() {
-    if (!mm_init(1024 * 1024)) {
-        printf("Failed to init memory manager!\n");
-        return -1;
-    }
-    pthread_t test_thread;
-    if (pthread_create(&test_thread, NULL, &AllocationTestThread, NULL) != 0) {
-        printf("Failed to create test thread!\n");
-        return -1;
-    }
-    RunMemoryVisualizer();
-    pthread_join(test_thread, NULL); // מחכים שהבדיקות יסתיימו ליתר ביטחון
-    mm_destroy();
+    // if (!mm_init(1024 * 1024)) {
+    //     printf("Failed to init memory manager!\n");
+    //     return -1;
+    // }
+    // pthread_t test_thread;
+    // if (pthread_create(&test_thread, NULL, &AllocationTestThread, NULL) != 0) {
+    //     printf("Failed to create test thread!\n");
+    //     return -1;
+    // }
+    // RunMemoryVisualizer();
+    // pthread_join(test_thread, NULL);
+    // mm_destroy();
     //run_nursery_tests();
     //run_general_tests();
-    //run_graph_tests();
+    run_graph_tests();
     return 0;
 }

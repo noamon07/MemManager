@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "Strategies/nursery.h"
+#include "Infrastructure/scc_finder.h"
 
 #define INITIAL_SIZE (4096)
 
@@ -9,9 +10,9 @@ static HandleTable table;
 static uint8_t initialized = 0;
 
 
-void handle_table_init(uint32_t initial_size) {
+HandleTable* handle_table_init(uint32_t initial_size) {
     if (initialized||initial_size == 0) {
-        return;
+        return NULL;
     }
     table.entries = (HandleEntry*)calloc(initial_size * sizeof(HandleEntry),1);
     table.size = (uint32_t)initial_size;
@@ -23,6 +24,7 @@ void handle_table_init(uint32_t initial_size) {
         table.entries[i].first_edge_offset = INVALID_INDEX;
     }
     initialized = 1;
+    return &table;
 }
 
 void handle_table_destroy() {
@@ -40,7 +42,6 @@ void handle_table_destroy() {
 
 Handle handle_table_new(uint32_t ptr_size){
     Handle invalid_handle = {INVALID_INDEX, 0};
-    handle_table_init(INITIAL_SIZE);
     if (!initialized){
         return invalid_handle;
     }
@@ -65,7 +66,6 @@ Handle handle_table_new(uint32_t ptr_size){
 }
 
 void *handle_table_get_ptr(Handle handle) {
-    handle_table_init(INITIAL_SIZE);
     if (!initialized) {
         return NULL;
     }
@@ -82,7 +82,6 @@ void *handle_table_get_ptr(Handle handle) {
 
 HandleEntry *handle_table_get_entry_by_index(uint32_t index)
 {
-    handle_table_init(INITIAL_SIZE);
     if (!initialized || index >= table.size) {
         return NULL;
     }
@@ -98,7 +97,6 @@ HandleEntry *handle_table_get_entry_by_index(uint32_t index)
 
 HandleEntry *handle_table_get_entry(Handle handle)
 {
-    handle_table_init(INITIAL_SIZE);
     if (!initialized) {
         return NULL;
     }
@@ -117,7 +115,6 @@ HandleEntry *handle_table_get_entry(Handle handle)
 
 
 void handle_table_free(Handle handle) {
-    handle_table_init(INITIAL_SIZE);
     if (!initialized) {
         return;
     }
@@ -133,7 +130,6 @@ void handle_table_free(Handle handle) {
 }
 
 int handle_table_grow() {
-    handle_table_init(INITIAL_SIZE);
     if (!initialized || table.size > (INVALID_INDEX - table.size)) {
         return 0;
     }
@@ -152,11 +148,10 @@ int handle_table_grow() {
     table.entries = new_entries;
     table.size = new_size;
     table.head = old_size;
-    return 1;
+    return scc_finder_grow(new_size);
 }
 HandleTable *mm_get_handle_table_instance()
 {
-    handle_table_init(INITIAL_SIZE);
     if(!initialized)
         return NULL;
     return &table;

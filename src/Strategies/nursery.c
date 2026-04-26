@@ -32,9 +32,9 @@ static int nursery_defrag_callback(void* arena_context, BaseHeader* header, uint
     entry->data.data_offset = new_offset;
     return 1; 
 }
-int nursery_init(uint32_t initial_size)
+Nursery* nursery_init(uint32_t initial_size)
 {
-    if(initialized || initial_size == 0) return 0;
+    if(initialized || initial_size == 0) return NULL;
     
     if(bump_init(&nursery.bump, initial_size, nursery_defrag_callback, &nursery))
     {
@@ -42,9 +42,9 @@ int nursery_init(uint32_t initial_size)
         strategy.realloc = nursery_realloc;
         strategy.get = nursery_get;
         initialized = 1;
-        return 1;
+        return &nursery;
     }
-    return 0;
+    return NULL;
 }
 
 void nursery_destroy()
@@ -60,7 +60,6 @@ void nursery_destroy()
 
 uint32_t nursery_malloc(uint32_t size, Handle handle)
 {
-    nursery_init(NURSERY_START_SIZE);
     if (!initialized || size == 0) return INVALID_DATA_OFFSET;
     
     HandleEntry* entry = handle_table_get_entry(handle);
@@ -152,7 +151,6 @@ void nursery_trim_block(BaseHeader* header, uint32_t new_size)
 }
 uint32_t nursery_realloc(uint32_t new_size, Handle handle)
 {
-    nursery_init(NURSERY_START_SIZE);
     if(!initialized)
         return INVALID_DATA_OFFSET;
     HandleEntry* entry = handle_table_get_entry(handle);

@@ -2,18 +2,19 @@
 #define GRAPH_H
 
 #include "Interface/mem_manager.h"
+#include "Arenas/slab.h"
 #include <stdint.h>
 #ifndef INVALID_DATA_OFFSET
 #define INVALID_DATA_OFFSET ((uint32_t)-1)
-#define INVALID_EDGE (Edge){INVALID_HANDLE, INVALID_DATA_OFFSET}
 #endif
+#define INVALID_EDGE (Edge){INVALID_HANDLE, INVALID_DATA_OFFSET}
 
 typedef struct {
     Handle child_handle; // The "Child" (where the pointer goes)
     uint32_t next_edge_offset;  // The next Edge in the linked list for the sam parent
 } Edge;
 
-int graph_init();
+Slab* graph_init();
 int graph_add_ref(Handle parent_handle, Handle child_handle);
 int graph_remove_ref(Handle parent_handle, Handle child_handle);
 void graph_free(Handle parent_handle);

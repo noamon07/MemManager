@@ -1,5 +1,4 @@
 #include "Infrastructure/graph.h"
-#include "Arenas/slab.h"
 #include "Infrastructure/handle.h"
 #include "Infrastructure/scc_finder.h"
 #include <stdlib.h>
@@ -28,9 +27,11 @@ int expand_edges_memory() {
 }
 
 
-int graph_init() {
+Slab* graph_init() {
     slab_init(&edges_slab, sizeof(Edge));
-    return expand_edges_memory();
+    if(expand_edges_memory())
+        return &edges_slab;
+    return NULL;
 }
 
 int graph_add_ref(Handle parent_handle, Handle child_handle)

@@ -13,6 +13,7 @@ typedef int (*bump_defrag_cb)(void* arena_context, BaseHeader* header, uint32_t 
 typedef struct {
     uint8_t* mem;
     uint32_t mem_size;
+    uint32_t max_allowed_size;
     uint32_t cur_index;
     uint32_t alloc_memory;
     

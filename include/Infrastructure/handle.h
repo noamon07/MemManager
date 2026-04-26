@@ -34,10 +34,11 @@ typedef struct {
     // capacity can be uint32_t because the size of an entry is 16 byte and the maximum number in uint32_t is 4bilion
     //the maximum amount is about 68 Gigabytes of RAM withount counting the data only the handles so you will run out of ram way before you get to it
     uint32_t size;
-    uint32_t head; // Head of the free list
+    uint32_t head;
+    uint32_t max_allowed_size;
 } HandleTable;
 
-void handle_table_init(uint32_t initial_capacity);
+HandleTable* handle_table_init(uint32_t initial_capacity);
 void handle_table_destroy();
 Handle handle_table_new(uint32_t ptr_size);
 void *handle_table_get_ptr(Handle handle);

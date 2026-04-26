@@ -13,6 +13,7 @@ typedef struct {
     uint32_t free_list_head;
     
     uint32_t slab_size;
+    uint32_t max_allowed_size;
 } Slab;
 
 

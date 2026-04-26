@@ -6,14 +6,22 @@
 #include "Infrastructure/scc_finder.h"
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
+#include "Arenas/slab.h"
+#include "Strategies/general.h"
 
 
 #define PAGE_SIZE (4096)
 #define MAX_SUSPECT_NODES (1024)
 
 typedef struct {
-    size_t max_size;
-    size_t current_usage;
+    uint32_t max_size;
+    uint32_t current_usage;
+    HandleTable* handle_table;
+    Slab* graph;
+    General* general;
+    Nursery* nursery;
+    Scc_Finder* scc_finder;
 } MemoryManager;
 static MemoryManager manager;
 
@@ -21,10 +29,12 @@ int mm_init(size_t max_size)
 {
     if (max_size == 0 || max_size < PAGE_SIZE || !graph_init()) return 0;
     manager.max_size = max_size;
-    handle_table_init(PAGE_SIZE/sizeof(HandleEntry));
+    manager.handle_table = handle_table_init(PAGE_SIZE/sizeof(HandleEntry));
+    manager.scc_finder = scc_finder_init(manager.handle_table->size);
     manager.current_usage = PAGE_SIZE;
-    graph_init();
-    scc_finder_init(MAX_SUSPECT_NODES);
+    manager.graph = graph_init();
+    manager.general = general_init(PAGE_SIZE);
+    manager.nursery = nursery_init(PAGE_SIZE);
     return 1;
 }
 
@@ -147,6 +157,7 @@ void* mm_resize_region(void* old_ptr, size_t old_size, size_t new_size)
     if (new_size > old_size) {
         uint32_t growth = new_size - old_size;
         if (manager.current_usage + growth > manager.max_size) {
+            printf("GOT TO SIZE LIMIT!\n");
             return NULL; 
         }
 

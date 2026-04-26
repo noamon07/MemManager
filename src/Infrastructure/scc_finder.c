@@ -1,5 +1,4 @@
 #include "Infrastructure/scc_finder.h"
-#include "Arenas/stack.h"
 #include "Infrastructure/graph.h"
 #include "Infrastructure/handle.h"
 #include "Interface/mem_manager.h"
@@ -15,35 +14,29 @@ typedef struct {
     Edge edge_cursor;
 } TarjanFrame;
 
-static uint32_t max_nodes;
-static Stack call_stack;
-static Stack scc_stack;
-static uint32_t* discovery = NULL;
-static uint32_t* lowlinks = NULL;
-static uint64_t current_time = 0;
+static Scc_Finder scc_finder;
+static uint32_t current_time = 0;
 
-int scc_finder_init(uint32_t max_suspect_nodes)
+Scc_Finder* scc_finder_init(uint32_t max_suspect_nodes)
 {    
-    int fail = !stack_init(&call_stack, max_suspect_nodes, sizeof(TarjanFrame));
-    fail |= !stack_init(&scc_stack, max_suspect_nodes, sizeof(Handle));
-    discovery = (uint32_t*)calloc(max_suspect_nodes, sizeof(uint32_t));
-    lowlinks = (uint32_t*)calloc(max_suspect_nodes, sizeof(uint32_t));
-    fail |= !discovery || !lowlinks;
-    max_nodes = max_suspect_nodes;
+    int fail = !stack_init(&scc_finder.call_stack, max_suspect_nodes, sizeof(TarjanFrame));
+    fail |= !stack_init(&scc_finder.scc_stack, max_suspect_nodes, sizeof(Handle));
+    scc_finder.node_times = (NodeTimes*)calloc(max_suspect_nodes, sizeof(NodeTimes));
+    fail |= !scc_finder.node_times;
+    scc_finder.max_nodes = max_suspect_nodes;
     if(fail)
     {
         scc_finder_destroy();
-        return 0;
+        return NULL;
     }
-    return 1;
+    return &scc_finder;
 }
 
 void scc_finder_destroy()
 {
-    stack_destroy(&call_stack);
-    stack_destroy(&scc_stack);
-    free(discovery);
-    free(lowlinks);
+    stack_destroy(&scc_finder.call_stack);
+    stack_destroy(&scc_finder.scc_stack);
+    free(scc_finder.node_times);
 }
 
 void evaluate_scc_viability(Handle scc_representative)
@@ -113,7 +106,7 @@ void extract_scc_from_stack()
     int is_first_popped = 0;
     int is_root_found = 0;
     
-    while(!is_root_found && stack_pop(&scc_stack, &current_node))
+    while(!is_root_found && stack_pop(&scc_finder.scc_stack, &current_node))
     {
         HandleEntry* entry = handle_table_get_entry(current_node);
         if(entry)
@@ -131,7 +124,7 @@ void extract_scc_from_stack()
             }
             entry->is_on_scc_stack = 0;
 
-            if(discovery[current_node.index] == lowlinks[current_node.index])
+            if((scc_finder.node_times +current_node.index)->disc == (scc_finder.node_times +current_node.index)->low)
             {
                 entry->next_in_scc = INVALID_HANDLE;
                 is_root_found = 1;
@@ -140,7 +133,7 @@ void extract_scc_from_stack()
             {
                 Handle ph;
                 peeked_handle = &ph;
-                if(stack_top(&scc_stack, (void**)&peeked_handle))
+                if(stack_top(&scc_finder.scc_stack, (void**)&peeked_handle))
                 {
                     entry->next_in_scc = *peeked_handle;
                 }
@@ -163,23 +156,23 @@ void tarjan_dfs_visit(Handle start_node)
 {
     HandleEntry* entry = handle_table_get_entry(start_node);
     if(!entry) return;
-
-    discovery[start_node.index] = ++current_time;
-    lowlinks[start_node.index] = current_time;
+    (scc_finder.node_times +start_node.index)->disc = ++current_time;
+    
+    (scc_finder.node_times +start_node.index)->low = current_time;
     
     Edge first_edge = graph_get_first_edge(start_node);
     TarjanFrame initial_frame = {start_node, first_edge};
     
-    stack_push(&call_stack, &initial_frame);
-    stack_push(&scc_stack, &start_node);
+    stack_push(&scc_finder.call_stack, &initial_frame);
+    stack_push(&scc_finder.scc_stack, &start_node);
     entry->is_on_scc_stack = 1;
 
     int error_flag = 0;
 
-    while(call_stack.count != 0 && !error_flag)
+    while(scc_finder.call_stack.count != 0 && !error_flag)
     {
         TarjanFrame* frame = NULL;
-        if (!stack_top(&call_stack, (void**)&frame) || frame == NULL) 
+        if (!stack_top(&scc_finder.call_stack, (void**)&frame) || frame == NULL) 
         {
             error_flag = 1; 
         }
@@ -195,36 +188,36 @@ void tarjan_dfs_visit(Handle start_node)
                 Handle child_node = current_edge.child_handle;
                 HandleEntry* child_entry = handle_table_get_entry(child_node);
                 
-                if(!discovery[child_node.index])
+                if(!(scc_finder.node_times +child_node.index)->disc)
                 {
-                    discovery[child_node.index] = ++current_time;
-                    lowlinks[child_node.index] = current_time;
+                    (scc_finder.node_times +child_node.index)->disc = ++current_time;
+                    (scc_finder.node_times +child_node.index)->low = current_time;
                     Edge child_edge = graph_get_first_edge(child_node);
                     
                     TarjanFrame child_frame = {child_node, child_edge};
-                    stack_push(&call_stack, &child_frame);
-                    stack_push(&scc_stack, &child_node);
+                    stack_push(&scc_finder.call_stack, &child_frame);
+                    stack_push(&scc_finder.scc_stack, &child_node);
                     
                     if (child_entry) child_entry->is_on_scc_stack = 1;
                 }
                 else if(child_entry && child_entry->is_on_scc_stack)
                 {
-                    lowlinks[current_node.index] = MIN(lowlinks[current_node.index], discovery[child_node.index]);
+                    (scc_finder.node_times +child_node.index)->low = MIN((scc_finder.node_times +child_node.index)->low , (scc_finder.node_times +child_node.index)->disc);
                 }
             }
             else
             {
                 TarjanFrame dummy; 
-                stack_pop(&call_stack, &dummy);
+                stack_pop(&scc_finder.call_stack, &dummy);
                 
                 TarjanFrame* parent_frame = NULL;
-                if(stack_top(&call_stack, (void**)&parent_frame))
+                if(stack_top(&scc_finder.call_stack, (void**)&parent_frame))
                 {
                     Handle parent_node = parent_frame->Parent_handle;
-                    lowlinks[parent_node.index] = MIN(lowlinks[parent_node.index], lowlinks[current_node.index]);
+                    (scc_finder.node_times +parent_node.index)->low = MIN((scc_finder.node_times +parent_node.index)->low, (scc_finder.node_times +current_node.index)->low);
                 }
                 
-                if(discovery[current_node.index] == lowlinks[current_node.index])
+                if((scc_finder.node_times +current_node.index)->disc == (scc_finder.node_times +current_node.index)->low)
                 {
                     extract_scc_from_stack();
                 }
@@ -256,9 +249,10 @@ void recalculate_scc_subgraph(Handle start_handle)
             
             old_entry->is_scc_root = 0;
             old_entry->next_in_scc = INVALID_HANDLE;
-            discovery[current_old.index] = 0; 
+            old_entry->scc.root_scc = INVALID_HANDLE;
+            (scc_finder.node_times +current_old.index)->disc = 0;
             
-            stack_push(&scc_stack, &current_old);
+            stack_push(&scc_finder.scc_stack, &current_old);
             pending_count++;
             
             current_old = next_old;
@@ -272,11 +266,10 @@ void recalculate_scc_subgraph(Handle start_handle)
     while(pending_count > 0)
     {
         Handle member_to_process;
-        if (stack_pop(&scc_stack, &member_to_process))
+        if (stack_pop(&scc_finder.scc_stack, &member_to_process))
         {
             pending_count--;
-        
-            if(!discovery[member_to_process.index])
+            if(!(scc_finder.node_times +member_to_process.index)->disc)
             {
                 tarjan_dfs_visit(member_to_process);
             }
@@ -289,12 +282,12 @@ void recalculate_scc_subgraph(Handle start_handle)
 }
 int lightweight_bfs_search(Handle start_node, Handle target_node, Handle* out_path)
 {
-    uint32_t* memory_pool = (uint32_t*)call_stack.data;
+    uint32_t* memory_pool = (uint32_t*)scc_finder.call_stack.data;
     Handle* bfs_queue   = (Handle*)memory_pool; 
-    Handle* bfs_parent  = (Handle*)(memory_pool + max_nodes);
-    uint32_t* bfs_visited = memory_pool + (2 * max_nodes);
+    Handle* bfs_parent  = (Handle*)(memory_pool + scc_finder.max_nodes);
+    uint32_t* bfs_visited = memory_pool + (2 * scc_finder.max_nodes);
     
-    memset(bfs_visited, 0, max_nodes * sizeof(uint32_t));
+    memset(bfs_visited, 0, scc_finder.max_nodes * sizeof(uint32_t));
     uint32_t head = 0;
     uint32_t tail = 0;
 
@@ -350,7 +343,7 @@ void notify_edge_added(Handle node_A, Handle node_B)
     if (!is_valid_handle(master_root) || !is_valid_handle(target_root)) return;
     if (handles_equal(master_root, target_root)) return;
 
-    Handle* exact_cycle_path = (Handle*)scc_stack.data; 
+    Handle* exact_cycle_path = (Handle*)scc_finder.scc_stack.data; 
     
     int path_len = lightweight_bfs_search(node_B, node_A, exact_cycle_path);
     if (path_len == 0)
@@ -393,4 +386,21 @@ void notify_edge_added(Handle node_A, Handle node_B)
         }
     }
     evaluate_scc_viability(master_root);
+}
+int scc_finder_grow(uint32_t max_suspect_nodes)
+{
+    stack_destroy(&scc_finder.call_stack);
+    stack_destroy(&scc_finder.scc_stack);
+    int fail = !stack_init(&scc_finder.call_stack, max_suspect_nodes, sizeof(TarjanFrame));
+    fail |= !stack_init(&scc_finder.scc_stack, max_suspect_nodes, sizeof(Handle));
+    free(scc_finder.node_times);
+    scc_finder.node_times = (NodeTimes*)calloc(scc_finder.max_nodes, sizeof(NodeTimes));
+    fail |= !scc_finder.node_times;
+    scc_finder.max_nodes = max_suspect_nodes;
+    if(fail)
+    {
+        scc_finder_destroy();
+        return 0;
+    }
+    return 1;
 }
