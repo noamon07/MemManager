@@ -29,7 +29,8 @@ BaseHeader* get_header(Handle h) {
 void test_1_frontier_rollback() {
     TEST_START("1. Frontier Rollback");
     mm_destroy();
-    mm_init(1024*1024);
+    mm_init(DEFAULT_MM_CONFIG(1024*1024));
+
     Nursery* n = get_nursery();
     uint32_t start_index = n->bump.cur_index;
 
@@ -51,7 +52,8 @@ void test_1_frontier_rollback() {
 void test_2_bidirectional_coalesce() {
     TEST_START("2. O(1) Bidirectional Coalescing");
     mm_destroy();
-    mm_init(1024*1024);
+    mm_init(DEFAULT_MM_CONFIG(1024*1024));
+
     Nursery* n = get_nursery();
 
     Handle h1 = mm_malloc(32);
@@ -92,7 +94,8 @@ void test_2_bidirectional_coalesce() {
 void test_3_inplace_shrink() {
     TEST_START("3. Reallocation: In-Place Shrink");
     mm_destroy();
-    mm_init(1024*1024);
+    mm_init(DEFAULT_MM_CONFIG(1024*1024));
+
     Nursery* n = get_nursery();
 
     Handle h1 = mm_malloc(128);
@@ -122,7 +125,8 @@ void test_3_inplace_shrink() {
 void test_4_frontier_expansion() {
     TEST_START("4. Reallocation: Frontier Expansion");
     mm_destroy();
-    mm_init(1024*1024);
+    mm_init(DEFAULT_MM_CONFIG(1024*1024));
+
     
     Nursery* n = get_nursery();
 
@@ -149,7 +153,8 @@ void test_4_frontier_expansion() {
 void test_5_neighbor_absorption() {
     TEST_START("5. Reallocation: Neighbor Absorption");
     mm_destroy();
-    mm_init(1024*1024);
+    mm_init(DEFAULT_MM_CONFIG(1024*1024));
+
     
     
     Handle h1 = mm_malloc(32);
@@ -177,7 +182,8 @@ void test_5_neighbor_absorption() {
 void test_6_full_relocation() {
     TEST_START("6. Reallocation: Full Relocation & Handle Update");
     mm_destroy();
-    mm_init(1024*1024);
+    mm_init(DEFAULT_MM_CONFIG(1024*1024));
+
     
     
     Handle h1 = mm_malloc(32);
@@ -206,7 +212,8 @@ void test_6_full_relocation() {
 void test_7_sliding_compaction() {
     TEST_START("7. Sliding Compaction (Defragmentation)");
     mm_destroy();
-    mm_init(1024*1024);
+    mm_init(DEFAULT_MM_CONFIG(1024*1024));
+
     
     Nursery* n = get_nursery();
 
@@ -242,7 +249,8 @@ void test_7_sliding_compaction() {
 void test_8_generational_aging() {
     TEST_START("8. Generational Aging & Promotion Routing");
     mm_destroy();
-    mm_init(1024*1024);
+    mm_init(DEFAULT_MM_CONFIG(1024*1024));
+
     
     Nursery* n = get_nursery();
 
@@ -278,7 +286,8 @@ void test_8_generational_aging() {
 void test_9_dynamic_growth() {
     TEST_START("9. Dynamic Arena Growth");
     mm_destroy();
-    mm_init(1024*1024);
+    mm_init(DEFAULT_MM_CONFIG(1024*1024));
+
     
     Nursery* n = get_nursery();
     
@@ -302,7 +311,8 @@ void test_9_dynamic_growth() {
 void test_10_byte_alignment() {
     TEST_START("10. Byte Alignment & Padding");
     mm_destroy();
-    mm_init(1024*1024);
+    mm_init(DEFAULT_MM_CONFIG(1024*1024));
+
     
 
     // Requesting exactly 3 bytes
@@ -327,7 +337,8 @@ void test_10_byte_alignment() {
 void test_11_oom_fallback() {
     TEST_START("11. OS Denial / OOM Fallback");
     mm_destroy();
-    mm_init(1024*1024);
+    mm_init(DEFAULT_MM_CONFIG(1024*1024));
+
     
     
     // Request an absurdly large allocation that will cause bump_grow math to fail or OS to reject
@@ -347,7 +358,8 @@ void test_11_oom_fallback() {
 void test_12_high_churn_stress() {
     TEST_START("12. High-Churn Stress Test");
     mm_destroy();
-    mm_init(1024*1024);
+    mm_init(DEFAULT_MM_CONFIG(1024*1024));
+
     
     Nursery* n = get_nursery();
     
@@ -423,9 +435,7 @@ void test_12_high_churn_stress() {
 void test_13_realloc_payload_integrity() {
     TEST_START("13. Realloc Payload Integrity Check");
     mm_destroy();
-    mm_init(1024*1024);
-    
-    
+    mm_init(DEFAULT_MM_CONFIG(1024*1024));
     // Allocate 32 bytes
     Handle h1 = mm_malloc(32);
     
@@ -467,7 +477,8 @@ void run_nursery_tests() {
     printf("====================================================\n");
     printf("   GENERATIONAL HYBRID MEMORY MANAGER TEST SUITE    \n");
     printf("====================================================\n\n");
-    mm_init(1024*1024);
+    mm_init(DEFAULT_MM_CONFIG(1024*1024));
+
     test_1_frontier_rollback();
     test_2_bidirectional_coalesce();
     test_3_inplace_shrink();

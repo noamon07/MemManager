@@ -25,16 +25,35 @@ typedef struct {
 } MemoryManager;
 static MemoryManager manager;
 
-int mm_init(size_t max_size)
+int mm_init(MemoryManagerConfig config)
 {
-    if (max_size == 0 || max_size < PAGE_SIZE) return 0;
-    manager.max_size = max_size;
-    manager.handle_table = handle_table_init(PAGE_SIZE/sizeof(HandleEntry),max_size);
-    manager.scc_finder = scc_finder_init(manager.handle_table->size,max_size);
-    manager.current_usage = PAGE_SIZE;
-    manager.graph = graph_init(max_size);
-    manager.general = general_init(PAGE_SIZE,max_size);
-    manager.nursery = nursery_init(PAGE_SIZE,max_size);
+    manager.max_size = config.total_system_memory;
+    uint32_t handle_table_size = config.max_handles * sizeof(HandleEntry);
+    uint32_t scc_finder_size = config.max_handles * (sizeof(TarjanFrame) + sizeof(Handle) + sizeof(NodeTimes));
+    uint32_t edges_count = (uint32_t)(config.max_handles * config.expected_graph_density);
+    uint32_t edges_slab_size = edges_count * sizeof(Edge);
+    uint32_t total_metadata = handle_table_size + scc_finder_size + edges_slab_size;
+    if (total_metadata >= config.total_system_memory) {
+        printf("INIT ERROR: Metadata overhead (%zu) exceeds total memory (%zu)!\n", 
+                (size_t)total_metadata, (size_t)config.total_system_memory);
+        return 0;
+    }
+    uint32_t remaining_data_space = config.total_system_memory - total_metadata;
+    uint32_t nursery_size = (uint32_t)(remaining_data_space * config.nursery_ratio);
+    uint32_t general_size = remaining_data_space - nursery_size;
+    if(nursery_size<PAGE_SIZE || general_size<PAGE_SIZE)
+        return 0;
+    manager.handle_table = handle_table_init(PAGE_SIZE/sizeof(HandleEntry),handle_table_size);
+    manager.scc_finder = scc_finder_init(manager.handle_table->size,scc_finder_size);
+    manager.graph = graph_init(edges_slab_size);
+    
+    manager.general = general_init(PAGE_SIZE,general_size);
+    manager.nursery = nursery_init(PAGE_SIZE,nursery_size);
+    manager.current_usage = manager.handle_table->size * sizeof(HandleEntry) +
+                            manager.scc_finder->size +
+                            manager.graph->slab_size +
+                            manager.general->mem_size +
+                            manager.nursery->bump.mem_size;
     return 1;
 }
 
@@ -43,6 +62,10 @@ void mm_destroy()
     if(!manager.max_size)
         return;
     handle_table_destroy();
+    general_destroy(manager.general);
+    nursery_destroy(manager.nursery);
+    scc_finder_destroy(manager.scc_finder);
+    graph_destroy();
     memset(&manager,0,sizeof(MemoryManager));
 }
 
@@ -150,13 +173,13 @@ void* mm_request_region(size_t size)
     }
     return ptr;
 }
-void* mm_resize_region(void* old_ptr, size_t old_size, size_t new_size)
+void* mm_resize_region(void* old_ptr, size_t old_size, size_t new_size, uint32_t max_allowed_size)
 {
     if (new_size == old_size) return old_ptr;
 
     if (new_size > old_size) {
         uint32_t growth = new_size - old_size;
-        if (manager.current_usage + growth > manager.max_size) {
+        if (manager.current_usage + growth > manager.max_size || new_size > max_allowed_size) {
             printf("GOT TO SIZE LIMIT!\n");
             return NULL; 
         }

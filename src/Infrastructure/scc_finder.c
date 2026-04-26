@@ -9,10 +9,7 @@
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #endif
 
-typedef struct {
-    Handle Parent_handle;
-    Edge edge_cursor;
-} TarjanFrame;
+
 
 static Scc_Finder scc_finder;
 static uint32_t current_time = 0;
@@ -25,6 +22,7 @@ Scc_Finder* scc_finder_init(uint32_t max_suspect_nodes, uint32_t max_allowed_siz
     fail |= !scc_finder.node_times;
     scc_finder.max_nodes = max_suspect_nodes;
     scc_finder.max_allowed_size = max_allowed_size;
+    scc_finder.size = max_suspect_nodes * sizeof(TarjanFrame) + max_suspect_nodes * sizeof(Handle) + max_suspect_nodes * sizeof(NodeTimes);
     if(fail)
     {
         scc_finder_destroy();

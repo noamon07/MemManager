@@ -34,6 +34,15 @@ Slab* graph_init(uint32_t max_allowed_size) {
         return &edges_slab;
     return NULL;
 }
+void graph_destroy()
+{
+    if (edges_memory_base)
+    {
+        free(edges_memory_base);
+        edges_memory_base = NULL;
+    }
+}
+
 
 int graph_add_ref(Handle parent_handle, Handle child_handle)
 {

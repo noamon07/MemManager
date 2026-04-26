@@ -47,7 +47,7 @@ int is_dead(Handle h) {
 /* ========================================================================= */
 void test_graph_1_standalone() {
     mm_destroy();
-    mm_init(4096);
+    mm_init(DEFAULT_MM_CONFIG(1024*1024));
     TEST_START("1. Standalone Object Deletion");
     
     Handle anchor = create_graph_node();
@@ -75,7 +75,7 @@ void test_graph_1_standalone() {
 /* ========================================================================= */
 void test_graph_2_cycle_merge() {
     mm_destroy();
-    mm_init(4096);
+    mm_init(DEFAULT_MM_CONFIG(1024*1024));
     TEST_START("2. BFS Soft-Merge & Cluster Demolition");
     
     Handle anchor = create_graph_node();
@@ -127,7 +127,7 @@ void test_graph_2_cycle_merge() {
 /* ========================================================================= */
 void test_graph_3_tarjan_fracture() {
     mm_destroy();
-    mm_init(4096);
+    mm_init(DEFAULT_MM_CONFIG(1024*1024));
     TEST_START("3. Tarjan Cycle Fracture & Partial Deletion");
     
     Handle anchor = create_graph_node();
@@ -162,7 +162,7 @@ void test_graph_3_tarjan_fracture() {
 /* ========================================================================= */
 void test_graph_4_self_reference() {
     mm_destroy();
-    mm_init(4096);
+    mm_init(DEFAULT_MM_CONFIG(1024*1024));
     TEST_START("4. Self-Referential Cycles (A -> A)");
     
     Handle anchor = create_graph_node();
@@ -191,7 +191,7 @@ void test_graph_4_self_reference() {
 /* ========================================================================= */
 void test_graph_5_complex_fracture() {
     mm_destroy();
-    mm_init(4096);
+    mm_init(DEFAULT_MM_CONFIG(1024*1024));
     TEST_START("5. Complex Fracture (Orphaned Sub-Cluster)");
     
     Handle anchor = create_graph_node();
@@ -238,7 +238,7 @@ void test_graph_5_complex_fracture() {
 
 void test_graph_6_high_churn_stress() {
     mm_destroy();
-    mm_init(4096);
+    mm_init(DEFAULT_MM_CONFIG(1024*1024));
     TEST_START("6. High-Churn Graph Topology Stress Test");
     
     #define CHURN_COUNT 500
@@ -336,7 +336,7 @@ void run_graph_tests() {
     printf("====================================================\n\n");
 
     // Initialize the systems (adjust sizes to your engine's specs)
-    mm_init(4096);
+    mm_init(DEFAULT_MM_CONFIG(1024*1024));
     test_graph_1_standalone();
     test_graph_2_cycle_merge();
     test_graph_3_tarjan_fracture();

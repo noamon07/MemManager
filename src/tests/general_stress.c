@@ -303,7 +303,7 @@ void run_general_tests() {
 
     // Initialize the arena once before testing
     mm_destroy();
-    mm_init(1024*1024);
+    mm_init(DEFAULT_MM_CONFIG(1024*1024));
     test_gen_1_split_and_trim();
     test_gen_2_double_merge();
     test_gen_3_inplace_expand();
