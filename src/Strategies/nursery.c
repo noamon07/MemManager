@@ -32,11 +32,11 @@ static int nursery_defrag_callback(void* arena_context, BaseHeader* header, uint
     entry->data.data_offset = new_offset;
     return 1; 
 }
-Nursery* nursery_init(uint32_t initial_size)
+Nursery* nursery_init(uint32_t initial_size, uint32_t max_allowed_size)
 {
     if(initialized || initial_size == 0) return NULL;
     
-    if(bump_init(&nursery.bump, initial_size, nursery_defrag_callback, &nursery))
+    if(bump_init(&nursery.bump, initial_size, nursery_defrag_callback, &nursery, max_allowed_size))
     {
         strategy.free = nursery_free;
         strategy.realloc = nursery_realloc;

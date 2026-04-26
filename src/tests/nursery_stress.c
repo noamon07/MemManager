@@ -28,9 +28,8 @@ BaseHeader* get_header(Handle h) {
 /* ========================================================================= */
 void test_1_frontier_rollback() {
     TEST_START("1. Frontier Rollback");
-    nursery_destroy();
-    nursery_init(4096);
-    handle_table_destroy();
+    mm_destroy();
+    mm_init(1024*1024);
     Nursery* n = get_nursery();
     uint32_t start_index = n->bump.cur_index;
 
@@ -43,7 +42,7 @@ void test_1_frontier_rollback() {
     assert(n->bump.cur_index == start_index);
     assert(n->bump.alloc_memory == 0);
     TEST_PASS();
-    nursery_destroy();
+    mm_destroy();
 }
 
 /* ========================================================================= */
@@ -51,9 +50,8 @@ void test_1_frontier_rollback() {
 /* ========================================================================= */
 void test_2_bidirectional_coalesce() {
     TEST_START("2. O(1) Bidirectional Coalescing");
-    nursery_destroy();
-    nursery_init(4096);
-    handle_table_destroy();
+    mm_destroy();
+    mm_init(1024*1024);
     Nursery* n = get_nursery();
 
     Handle h1 = mm_malloc(32);
@@ -85,7 +83,7 @@ void test_2_bidirectional_coalesce() {
     mm_free(h5);
     mm_free(h1);
     TEST_PASS();
-    nursery_destroy();
+    mm_destroy();
 }
 
 /* ========================================================================= */
@@ -93,9 +91,8 @@ void test_2_bidirectional_coalesce() {
 /* ========================================================================= */
 void test_3_inplace_shrink() {
     TEST_START("3. Reallocation: In-Place Shrink");
-    nursery_destroy();
-    nursery_init(4096);
-    handle_table_destroy();
+    mm_destroy();
+    mm_init(1024*1024);
     Nursery* n = get_nursery();
 
     Handle h1 = mm_malloc(128);
@@ -116,7 +113,7 @@ void test_3_inplace_shrink() {
     mm_free(hLock);
     mm_free(h1);
     TEST_PASS();
-    nursery_destroy();
+    mm_destroy();
 }
 
 /* ========================================================================= */
@@ -124,9 +121,9 @@ void test_3_inplace_shrink() {
 /* ========================================================================= */
 void test_4_frontier_expansion() {
     TEST_START("4. Reallocation: Frontier Expansion");
-    nursery_destroy();
-    nursery_init(4096);
-    handle_table_destroy();
+    mm_destroy();
+    mm_init(1024*1024);
+    
     Nursery* n = get_nursery();
 
     Handle h1 = mm_malloc(32);
@@ -143,7 +140,7 @@ void test_4_frontier_expansion() {
 
     mm_free(h1);
     TEST_PASS();
-    nursery_destroy();
+    mm_destroy();
 }
 
 /* ========================================================================= */
@@ -151,9 +148,9 @@ void test_4_frontier_expansion() {
 /* ========================================================================= */
 void test_5_neighbor_absorption() {
     TEST_START("5. Reallocation: Neighbor Absorption");
-    nursery_destroy();
-    nursery_init(4096);
-    handle_table_destroy();
+    mm_destroy();
+    mm_init(1024*1024);
+    
     
     Handle h1 = mm_malloc(32);
     Handle h2 = mm_malloc(128); // The neighbor we will free
@@ -171,7 +168,7 @@ void test_5_neighbor_absorption() {
     mm_free(hLock);
     mm_free(h1);
     TEST_PASS();
-    nursery_destroy();
+    mm_destroy();
 }
 
 /* ========================================================================= */
@@ -179,9 +176,9 @@ void test_5_neighbor_absorption() {
 /* ========================================================================= */
 void test_6_full_relocation() {
     TEST_START("6. Reallocation: Full Relocation & Handle Update");
-    nursery_destroy();
-    nursery_init(4096);
-    handle_table_destroy();
+    mm_destroy();
+    mm_init(1024*1024);
+    
     
     Handle h1 = mm_malloc(32);
     Handle h2 = mm_malloc(32); // Locks h1 completely
@@ -200,7 +197,7 @@ void test_6_full_relocation() {
     mm_free(h1);
     mm_free(h2);
     TEST_PASS();
-    nursery_destroy();
+    mm_destroy();
 }
 
 /* ========================================================================= */
@@ -208,9 +205,9 @@ void test_6_full_relocation() {
 /* ========================================================================= */
 void test_7_sliding_compaction() {
     TEST_START("7. Sliding Compaction (Defragmentation)");
-    nursery_destroy();
-    nursery_init(4096);
-    handle_table_destroy();
+    mm_destroy();
+    mm_init(1024*1024);
+    
     Nursery* n = get_nursery();
 
     Handle h1 = mm_malloc(32);
@@ -236,7 +233,7 @@ void test_7_sliding_compaction() {
     mm_free(h3);
     mm_free(h5);
     TEST_PASS();
-    nursery_destroy();
+    mm_destroy();
 }
 
 /* ========================================================================= */
@@ -244,9 +241,9 @@ void test_7_sliding_compaction() {
 /* ========================================================================= */
 void test_8_generational_aging() {
     TEST_START("8. Generational Aging & Promotion Routing");
-    nursery_destroy();
-    nursery_init(4096);
-    handle_table_destroy();
+    mm_destroy();
+    mm_init(1024*1024);
+    
     Nursery* n = get_nursery();
 
     Handle h1 = mm_malloc(32);
@@ -272,7 +269,7 @@ void test_8_generational_aging() {
 
     mm_free(h1);
     TEST_PASS();
-    nursery_destroy();
+    mm_destroy();
 }
 
 /* ========================================================================= */
@@ -280,9 +277,9 @@ void test_8_generational_aging() {
 /* ========================================================================= */
 void test_9_dynamic_growth() {
     TEST_START("9. Dynamic Arena Growth");
-    nursery_destroy();
-    nursery_init(4096);
-    handle_table_destroy();
+    mm_destroy();
+    mm_init(1024*1024);
+    
     Nursery* n = get_nursery();
     
     uint32_t starting_mem_size = n->bump.mem_size;
@@ -296,7 +293,7 @@ void test_9_dynamic_growth() {
 
     mm_free(h1);
     TEST_PASS();
-    nursery_destroy();
+    mm_destroy();
 }
 
 /* ========================================================================= */
@@ -304,9 +301,9 @@ void test_9_dynamic_growth() {
 /* ========================================================================= */
 void test_10_byte_alignment() {
     TEST_START("10. Byte Alignment & Padding");
-    nursery_destroy();
-    nursery_init(4096);
-    handle_table_destroy();
+    mm_destroy();
+    mm_init(1024*1024);
+    
 
     // Requesting exactly 3 bytes
     Handle h1 = mm_malloc(3);
@@ -321,7 +318,7 @@ void test_10_byte_alignment() {
 
     mm_free(h1);
     TEST_PASS();
-    nursery_destroy();
+    mm_destroy();
 }
 
 /* ========================================================================= */
@@ -329,9 +326,9 @@ void test_10_byte_alignment() {
 /* ========================================================================= */
 void test_11_oom_fallback() {
     TEST_START("11. OS Denial / OOM Fallback");
-    nursery_destroy();
-    nursery_init(4096);
-    handle_table_destroy();
+    mm_destroy();
+    mm_init(1024*1024);
+    
     
     // Request an absurdly large allocation that will cause bump_grow math to fail or OS to reject
     // ~4 Gigabytes
@@ -341,7 +338,7 @@ void test_11_oom_fallback() {
     assert(h1.index == INVALID_INDEX);
 
     TEST_PASS();
-    nursery_destroy();
+    mm_destroy();
 }
 
 /* ========================================================================= */
@@ -349,9 +346,9 @@ void test_11_oom_fallback() {
 /* ========================================================================= */
 void test_12_high_churn_stress() {
     TEST_START("12. High-Churn Stress Test");
-    nursery_destroy();
-    nursery_init(4096);
-    handle_table_destroy();
+    mm_destroy();
+    mm_init(1024*1024);
+    
     Nursery* n = get_nursery();
     
     #define CHURN_COUNT 1000
@@ -418,16 +415,16 @@ void test_12_high_churn_stress() {
     assert(n->bump.alloc_memory == 0);
 
     TEST_PASS();
-    nursery_destroy();
+    mm_destroy();
 }
 /* ========================================================================= */
 /* 13. Realloc Payload Integrity Check                                       */
 /* ========================================================================= */
 void test_13_realloc_payload_integrity() {
     TEST_START("13. Realloc Payload Integrity Check");
-    nursery_destroy();
-    nursery_init(4096);
-    handle_table_destroy();
+    mm_destroy();
+    mm_init(1024*1024);
+    
     
     // Allocate 32 bytes
     Handle h1 = mm_malloc(32);
@@ -462,7 +459,7 @@ void test_13_realloc_payload_integrity() {
     mm_free(h1);
     mm_free(hBlock);
     TEST_PASS();
-    nursery_destroy();
+    mm_destroy();
 }
 
 /* ========================================================================= */
@@ -470,7 +467,7 @@ void run_nursery_tests() {
     printf("====================================================\n");
     printf("   GENERATIONAL HYBRID MEMORY MANAGER TEST SUITE    \n");
     printf("====================================================\n\n");
-    mm_init(4096);
+    mm_init(1024*1024);
     test_1_frontier_rollback();
     test_2_bidirectional_coalesce();
     test_3_inplace_shrink();

@@ -61,8 +61,8 @@ int main() {
     // RunMemoryVisualizer();
     // pthread_join(test_thread, NULL);
     // mm_destroy();
-    //run_nursery_tests();
-    //run_general_tests();
+    run_nursery_tests();
+    run_general_tests();
     run_graph_tests();
     return 0;
 }

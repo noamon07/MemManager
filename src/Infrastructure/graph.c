@@ -27,8 +27,9 @@ int expand_edges_memory() {
 }
 
 
-Slab* graph_init() {
+Slab* graph_init(uint32_t max_allowed_size) {
     slab_init(&edges_slab, sizeof(Edge));
+    edges_slab.max_allowed_size = max_allowed_size;
     if(expand_edges_memory())
         return &edges_slab;
     return NULL;

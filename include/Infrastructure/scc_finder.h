@@ -17,7 +17,7 @@ typedef struct
 
 } Scc_Finder;
 
-Scc_Finder* scc_finder_init(uint32_t max_suspect_nodes);
+Scc_Finder* scc_finder_init(uint32_t max_suspect_nodes, uint32_t max_allowed_size);
 
 void scc_finder_destroy();
 

@@ -10,14 +10,16 @@ static HandleTable table;
 static uint8_t initialized = 0;
 
 
-HandleTable* handle_table_init(uint32_t initial_size) {
+HandleTable* handle_table_init(uint32_t initial_size, uint32_t max_allowed_size) {
     if (initialized||initial_size == 0) {
         return NULL;
     }
     table.entries = (HandleEntry*)calloc(initial_size * sizeof(HandleEntry),1);
+    if(!table.entries)
+        return NULL;
     table.size = (uint32_t)initial_size;
     table.head = 0;
-
+    table.max_allowed_size = max_allowed_size;
     table.entries[initial_size-1].data.next = INVALID_INDEX;
     for (uint32_t i = 0; i < table.size-1; ++i) {
         table.entries[i].data.next = i + 1;

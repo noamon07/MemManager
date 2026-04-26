@@ -38,7 +38,7 @@ typedef struct {
     uint32_t max_allowed_size;
 } HandleTable;
 
-HandleTable* handle_table_init(uint32_t initial_capacity);
+HandleTable* handle_table_init(uint32_t initial_capacity, uint32_t max_allowed_size);
 void handle_table_destroy();
 Handle handle_table_new(uint32_t ptr_size);
 void *handle_table_get_ptr(Handle handle);

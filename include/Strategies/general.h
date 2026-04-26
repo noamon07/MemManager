@@ -14,7 +14,7 @@ typedef struct {
     char last_block_allocated;
 } General;
 // Initialize the arena, allocate its physical memory, and format the first massive free block
-General* general_init(uint32_t initial_size);
+General* general_init(uint32_t initial_size, uint32_t max_allowed_size);
 
 // Destroy the arena and free the physical RAM
 void general_destroy();

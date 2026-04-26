@@ -11,11 +11,12 @@ static uint8_t initialized = 0;
 static Strategy strategy;
 
 int general_grow(General* allocator, uint32_t requested_size);
-General* general_init(uint32_t initial_size)
+General* general_init(uint32_t initial_size, uint32_t max_allowed_size)
 {
     if(initialized || initial_size == 0) return 0;
     if(tlsf_init(&general.tlsf))
     {
+        general.max_allowed_size = max_allowed_size;
         general.mem = (uint8_t*)malloc(initial_size);
         if(!general.mem)
             return NULL;

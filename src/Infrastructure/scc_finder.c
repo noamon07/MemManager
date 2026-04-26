@@ -17,13 +17,14 @@ typedef struct {
 static Scc_Finder scc_finder;
 static uint32_t current_time = 0;
 
-Scc_Finder* scc_finder_init(uint32_t max_suspect_nodes)
+Scc_Finder* scc_finder_init(uint32_t max_suspect_nodes, uint32_t max_allowed_size)
 {    
     int fail = !stack_init(&scc_finder.call_stack, max_suspect_nodes, sizeof(TarjanFrame));
     fail |= !stack_init(&scc_finder.scc_stack, max_suspect_nodes, sizeof(Handle));
     scc_finder.node_times = (NodeTimes*)calloc(max_suspect_nodes, sizeof(NodeTimes));
     fail |= !scc_finder.node_times;
     scc_finder.max_nodes = max_suspect_nodes;
+    scc_finder.max_allowed_size = max_allowed_size;
     if(fail)
     {
         scc_finder_destroy();

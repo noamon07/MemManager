@@ -302,8 +302,8 @@ void run_general_tests() {
     printf("====================================================\n\n");
 
     // Initialize the arena once before testing
-    general_destroy();
-    general_init(4096);
+    mm_destroy();
+    mm_init(1024*1024);
     test_gen_1_split_and_trim();
     test_gen_2_double_merge();
     test_gen_3_inplace_expand();
@@ -311,7 +311,7 @@ void run_general_tests() {
     test_gen_5_ram_stitching();
     test_gen_6_fragmentation_storm();
     test_gen_7_payload_integrity();
-
+    mm_destroy();
 
     printf("====================================================\n");
     printf("         ALL GENERAL TESTS PASSED!                  \n");

@@ -27,14 +27,14 @@ static MemoryManager manager;
 
 int mm_init(size_t max_size)
 {
-    if (max_size == 0 || max_size < PAGE_SIZE || !graph_init()) return 0;
+    if (max_size == 0 || max_size < PAGE_SIZE) return 0;
     manager.max_size = max_size;
-    manager.handle_table = handle_table_init(PAGE_SIZE/sizeof(HandleEntry));
-    manager.scc_finder = scc_finder_init(manager.handle_table->size);
+    manager.handle_table = handle_table_init(PAGE_SIZE/sizeof(HandleEntry),max_size);
+    manager.scc_finder = scc_finder_init(manager.handle_table->size,max_size);
     manager.current_usage = PAGE_SIZE;
-    manager.graph = graph_init();
-    manager.general = general_init(PAGE_SIZE);
-    manager.nursery = nursery_init(PAGE_SIZE);
+    manager.graph = graph_init(max_size);
+    manager.general = general_init(PAGE_SIZE,max_size);
+    manager.nursery = nursery_init(PAGE_SIZE,max_size);
     return 1;
 }
 

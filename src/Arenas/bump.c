@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-int bump_init(BumpAllocator* bump, uint32_t initial_size, bump_defrag_cb cb, void* context) {
+int bump_init(BumpAllocator* bump, uint32_t initial_size, bump_defrag_cb cb, void* context, uint32_t max_allowed_size) {
     if (!bump || initial_size == 0) return 0;
 
     bump->mem = (uint8_t*)calloc(initial_size, 1);
@@ -13,6 +13,7 @@ int bump_init(BumpAllocator* bump, uint32_t initial_size, bump_defrag_cb cb, voi
     bump->alloc_memory = 0;
     bump->defrag_cb = cb;
     bump->arena_context = context;
+    bump->max_allowed_size = max_allowed_size;
 
     return 1;
 }

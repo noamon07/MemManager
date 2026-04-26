@@ -14,7 +14,7 @@ typedef struct {
     uint32_t next_edge_offset;  // The next Edge in the linked list for the sam parent
 } Edge;
 
-Slab* graph_init();
+Slab* graph_init(uint32_t max_allowed_size);
 int graph_add_ref(Handle parent_handle, Handle child_handle);
 int graph_remove_ref(Handle parent_handle, Handle child_handle);
 void graph_free(Handle parent_handle);

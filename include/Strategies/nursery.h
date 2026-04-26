@@ -10,7 +10,7 @@ typedef struct {
     BumpAllocator bump;
 } Nursery;
 
-Nursery* nursery_init(uint32_t initial_size);
+Nursery* nursery_init(uint32_t initial_size, uint32_t max_allowed_size);
 void nursery_destroy();
 uint32_t nursery_malloc(uint32_t size, Handle handle);
 uint32_t nursery_realloc(uint32_t new_size, Handle handle);

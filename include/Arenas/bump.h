@@ -22,7 +22,7 @@ typedef struct {
 } BumpAllocator;
 
 
-int bump_init(BumpAllocator* bump, uint32_t initial_size, bump_defrag_cb cb, void* context);
+int bump_init(BumpAllocator* bump, uint32_t initial_size, bump_defrag_cb cb, void* context, uint32_t max_allowed_size);
 void bump_destroy(BumpAllocator* bump);
 
 // Core Allocation (Returns the offset index of the BaseHeader)
