@@ -180,7 +180,6 @@ void test_graph_4_self_reference() {
     
     graph_remove_ref(anchor, a);
     
-    // Deleting the external anchor must successfully break the self-loop
     assert(is_dead(a) == 1);
     
     TEST_PASS();
@@ -322,6 +321,7 @@ void test_graph_6_high_churn_stress() {
             active_nodes++;
         }
     }
+    graph_visualize_all();
     
     // If these asserts pass, your engine is leak-proof.
     assert(active_edges == 0 && "FATAL LEAK: Edges survived the extinction event!");

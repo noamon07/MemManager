@@ -21,7 +21,7 @@ typedef struct {
     void* arena_context; /* Pointer back to the parent Nursery or Long-Lived struct */
 } BumpAllocator;
 
-
+// initializes bump
 int bump_init(BumpAllocator* bump, uint32_t initial_size, bump_defrag_cb cb, void* context, uint32_t max_allowed_size);
 void bump_destroy(BumpAllocator* bump);
 

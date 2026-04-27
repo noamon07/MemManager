@@ -3,6 +3,7 @@
 #include <string.h>
 #include "Strategies/nursery.h"
 #include "Infrastructure/scc_finder.h"
+#include "Interface/memory_manager_priv.h"
 
 #define INITIAL_SIZE (4096)
 
@@ -63,6 +64,7 @@ Handle handle_table_new(uint32_t ptr_size){
     entry->scc.external_in_degree = 0;
     entry->first_edge_offset = INVALID_DATA_OFFSET;
     entry->next_in_scc = INVALID_HANDLE;
+    entry->is_root = 0;
 
     return (Handle){ index, entry->generation };
 }
@@ -135,7 +137,7 @@ int handle_table_grow() {
     if (!initialized || table.size > (INVALID_INDEX - table.size)) {
         return 0;
     }
-    HandleEntry *new_entries = (HandleEntry *)realloc(table.entries, (table.size + table.size) * sizeof(HandleEntry));
+    HandleEntry* new_entries = (HandleEntry*)mm_resize_region(table.entries, table.size * sizeof(HandleEntry), (table.size <<2) * sizeof(HandleEntry), table.max_allowed_size);
     if(!new_entries)
         return 0;
     memset(&new_entries[table.size], 0, table.size * sizeof(HandleEntry));

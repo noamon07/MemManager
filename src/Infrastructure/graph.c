@@ -1,6 +1,7 @@
 #include "Infrastructure/graph.h"
 #include "Infrastructure/handle.h"
 #include "Infrastructure/scc_finder.h"
+#include "Interface/memory_manager_priv.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -14,8 +15,7 @@ void* edges_memory_base;
 int expand_edges_memory() {
     uint32_t growth_bytes = EDGE_CAPACITY_GROWTH * sizeof(Edge);
     uint32_t new_size = edges_slab.slab_size + growth_bytes;
-
-    void* new_base = realloc(edges_memory_base, new_size);
+    uint8_t* new_base = (uint8_t*)mm_resize_region(edges_memory_base, edges_slab.slab_size, new_size, edges_slab.max_allowed_size);
     if (!new_base) {
         return 0;
     }
@@ -85,18 +85,26 @@ void graph_free_scc(Handle handle)
 {
     Handle root = get_scc_root(handle);
     HandleEntry* root_entry = handle_table_get_entry(root);
-    if(!root_entry)
+    
+    if(!root_entry) {
         return;
+    }
+        
     Handle cur = root;
-    while(!handles_equal(cur,INVALID_HANDLE))
+    int keep_freeing = 1;
+    
+    while(!handles_equal(cur, INVALID_HANDLE) && keep_freeing)
     {
         HandleEntry* cur_entry = handle_table_get_entry(cur);
-        if(!cur_entry) break;
-        Handle next = cur_entry->next_in_scc;
-        mm_free(cur);
-        cur = next;
+        
+        if(cur_entry) {
+            Handle next = cur_entry->next_in_scc;
+            mm_free(cur);
+            cur = next;
+        } else {
+            keep_freeing = 0; 
+        }
     }
-    
 }
 void update_scc_root_remove_edge(Handle parent_handle, Handle child_handle)
 {

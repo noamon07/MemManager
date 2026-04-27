@@ -2,6 +2,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include "Strategies/strategy.h"
+#include "Interface/memory_manager_priv.h"
 
 
 #define GENERAL_START_SIZE (4096)
@@ -273,7 +274,7 @@ int general_grow(General* allocator, uint32_t requested_size)
         new_size <<= 1;
         if (new_size == 0) return 0;
     }
-    uint8_t* new_mem = (uint8_t*)realloc(general.mem, new_size);
+    uint8_t* new_mem = (uint8_t*)mm_resize_region(general.mem, general.mem_size, new_size, general.max_allowed_size);
     if (!new_mem) return 0;
 
     uint32_t old_size = allocator->mem_size;

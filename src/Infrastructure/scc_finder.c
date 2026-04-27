@@ -342,17 +342,21 @@ void notify_edge_added(Handle node_A, Handle node_B)
     if (!is_valid_handle(master_root) || !is_valid_handle(target_root)) return;
     if (handles_equal(master_root, target_root)) return;
 
+    // Zero-allocation buffer reuse!
     Handle* exact_cycle_path = (Handle*)scc_finder.scc_stack.data; 
     
     int path_len = lightweight_bfs_search(node_B, node_A, exact_cycle_path);
     if (path_len == 0)
     {
         HandleEntry* master_entry = handle_table_get_entry(master_root);
-        master_entry->scc.external_in_degree++;
+        if (master_entry) {
+            master_entry->scc.external_in_degree++;
+        }
         return;
     }
 
     HandleEntry* master_entry = handle_table_get_entry(master_root);
+    if (!master_entry) return;
 
     for (int i = 0; i < path_len; i++)
     {
@@ -363,24 +367,31 @@ void notify_edge_added(Handle node_A, Handle node_B)
         {
             Handle current_member = local_root;
             Handle tail = INVALID_HANDLE;
+            int keep_merging = 1;
         
-            while (is_valid_handle(current_member))
+            while (is_valid_handle(current_member) && keep_merging)
             {
                 HandleEntry* member_entry = handle_table_get_entry(current_member);
-                if (!member_entry) break;
-
-                member_entry->is_scc_root = 0;
-                member_entry->scc.root_scc = master_root;
                 
-                tail = current_member;
-                current_member = member_entry->next_in_scc;
+                if (member_entry) {
+                    member_entry->is_scc_root = 0;
+                    member_entry->scc.root_scc = master_root;
+                    
+                    tail = current_member;
+                    current_member = member_entry->next_in_scc;
+                } else {
+                    keep_merging = 0;
+                }
             }
 
+            // חיבור הרשימה המקושרת (Splicing)
             if (is_valid_handle(tail))
             {
                 HandleEntry* tail_entry = handle_table_get_entry(tail);
-                tail_entry->next_in_scc = master_entry->next_in_scc;
-                master_entry->next_in_scc = local_root;
+                if (tail_entry) {
+                    tail_entry->next_in_scc = master_entry->next_in_scc;
+                    master_entry->next_in_scc = local_root;
+                }
             }
         }
     }

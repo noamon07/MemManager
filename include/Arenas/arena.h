@@ -15,9 +15,9 @@
 #define GET_INDEX(header,mem) ((uint8_t*)(header)-(uint8_t*)(mem))
 
 typedef struct {
-    uint32_t size:28,          /* Size in 8-byte multiples */
-             is_allocated:1,   /* 1 if live, 0 if free */
-             before_alloc:1,   /* 1 if previous contiguous block is live */
+    uint32_t size:28,
+             is_allocated:1,
+             before_alloc:1,
              custom_flags:2;
              
     Handle handle;

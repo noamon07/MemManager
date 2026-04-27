@@ -15,6 +15,7 @@ static int MapOffsetToPixels(uint32_t offset, uint32_t total_size, int screen_wi
     if (total_size == 0) return 0;
     return (int)(((float)offset / (float)total_size) * screen_width);
 }
+
 float GetPercentage(uint32_t used, uint32_t total) {
     if (total == 0) return 0;
     return ((float)used / (float)total) * 100.0f;
@@ -30,6 +31,7 @@ Vector2 GetHandleCenter(uint32_t index, int x, int y, int cell_size) {
         (float)(y + (row * cell_size) + (cell_size / 2))
     };
 }
+
 void DrawStats(int x, int y) {
     Nursery* nursery = get_nursery_instance();
     General* general = get_general_instance();
@@ -46,6 +48,7 @@ void DrawStats(int x, int y) {
     sprintf(buffer, "General Usage: %u/%u bytes (%.2f%%)", general->alloc_memory, general->mem_size, general_perc);
     DrawText(buffer, x, y + 20, 14, (general_perc > 80.0f) ? RED : DARKGRAY);
 }
+
 void DrawGradientBezier(Vector2 p1, Vector2 c1, Vector2 c2, Vector2 p2, Color colStart, Color colEnd) {
     int segments = 20; // ככל שיש יותר מקטעים, הקו ייראה חלק יותר
     for (int i = 0; i < segments; i++) {
@@ -66,28 +69,37 @@ void DrawGradientBezier(Vector2 p1, Vector2 c1, Vector2 c2, Vector2 p2, Color co
         DrawLineEx(pos, nextPos, 2.0f, currentCol);
     }
 }
+
 void DrawGraphEdges(int x, int y, int cell_size) {
     HandleTable* table = mm_get_handle_table_instance();
     if (!table) return;
 
     for (uint32_t i = 0; i < table->size; i++) {
         HandleEntry* entry = handle_table_get_entry_by_index(i);
-        if (!entry || !entry->is_allocated || entry->first_edge_offset == INVALID_DATA_OFFSET) continue;
-
-        Vector2 startPos = GetHandleCenter(i, x, y, cell_size);
         
-        uint32_t edge_offset = entry->first_edge_offset;
-        while (edge_offset != INVALID_DATA_OFFSET) {
-            Edge edge = graph_get_edge(edge_offset); 
-            if (edge.child_handle.index == INVALID_INDEX) break;
-            Vector2 endPos = GetHandleCenter(edge.child_handle.index, x, y, cell_size);
-            Vector2 cp1 = { startPos.x, startPos.y - 50 };
-            Vector2 cp2 = { endPos.x, endPos.y - 50 };
-            DrawGradientBezier(startPos, cp1, cp2, endPos, BLUE, RED);
-            edge_offset = edge.next_edge_offset;
+        if (entry && entry->is_allocated && entry->first_edge_offset != INVALID_DATA_OFFSET) {
+            Vector2 startPos = GetHandleCenter(i, x, y, cell_size);
+            uint32_t edge_offset = entry->first_edge_offset;
+            int keep_processing_edges = 1;
+            
+            while (edge_offset != INVALID_DATA_OFFSET && keep_processing_edges) {
+                Edge edge = graph_get_edge(edge_offset); 
+                
+                if (edge.child_handle.index != INVALID_INDEX) {
+                    Vector2 endPos = GetHandleCenter(edge.child_handle.index, x, y, cell_size);
+                    Vector2 cp1 = { startPos.x, startPos.y - 50 };
+                    Vector2 cp2 = { endPos.x, endPos.y - 50 };
+                    DrawGradientBezier(startPos, cp1, cp2, endPos, BLUE, RED);
+                    
+                    edge_offset = edge.next_edge_offset;
+                } else {
+                    keep_processing_edges = 0;
+                }
+            }
         }
     }
 }
+
 void DrawNurseryArena(int x, int y, int width, int height) {
     Nursery* nursery = get_nursery_instance();
     if (!nursery || !nursery->bump.mem) return;
@@ -97,26 +109,31 @@ void DrawNurseryArena(int x, int y, int width, int height) {
     DrawRectangleLines(x, y, width, height, WHITE);
 
     uint32_t current_offset = 0;
-    while (current_offset < nursery->bump.cur_index) {
+    int keep_processing = 1;
+
+    while (current_offset < nursery->bump.cur_index && keep_processing) {
         BaseHeader* header = (BaseHeader*)(nursery->bump.mem + current_offset);
         uint32_t block_bytes = HEADER_SIZE_TO_BYTES(header->size);
-        if (block_bytes == 0) break; // Prevent infinite loop on corruption
-
-        int blockX = x + MapOffsetToPixels(current_offset, nursery->bump.mem_size, width);
-        int blockW = MapOffsetToPixels(block_bytes, nursery->bump.mem_size, width);
-        if (blockW < 1) blockW = 1; // Always show at least 1 pixel
-
-        Color blockColor = header->is_allocated ? SKYBLUE : RED;
         
-        // Darker blue for promoted/older generations
-        if (header->is_allocated && header->custom_flags > 0) {
-            blockColor = BLUE; 
+        if (block_bytes > 0) {
+            int blockX = x + MapOffsetToPixels(current_offset, nursery->bump.mem_size, width);
+            int blockW = MapOffsetToPixels(block_bytes, nursery->bump.mem_size, width);
+            if (blockW < 1) blockW = 1; // Always show at least 1 pixel
+
+            Color blockColor = header->is_allocated ? SKYBLUE : RED;
+            
+            // Darker blue for promoted/older generations
+            if (header->is_allocated && header->custom_flags > 0) {
+                blockColor = BLUE; 
+            }
+
+            DrawRectangle(blockX, y, blockW, height, blockColor);
+            DrawRectangleLines(blockX, y, blockW, height, BLACK); // Boundary tags
+
+            current_offset += block_bytes;
+        } else {
+            keep_processing = 0;
         }
-
-        DrawRectangle(blockX, y, blockW, height, blockColor);
-        DrawRectangleLines(blockX, y, blockW, height, BLACK); // Boundary tags
-
-        current_offset += block_bytes;
     }
 
     // Draw Bump Pointer (Frontier)
@@ -133,21 +150,26 @@ void DrawGeneralArena(int x, int y, int width, int height) {
     DrawRectangleLines(x, y, width, height, WHITE);
 
     uint32_t current_offset = 0;
-    while (current_offset < general->mem_size) {
+    int keep_processing = 1;
+
+    while (current_offset < general->mem_size && keep_processing) {
         BaseHeader* header = (BaseHeader*)(general->mem + current_offset);
         uint32_t block_bytes = HEADER_SIZE_TO_BYTES(header->size);
-        if (block_bytes == 0) break;
+        
+        if (block_bytes > 0) {
+            int blockX = x + MapOffsetToPixels(current_offset, general->mem_size, width);
+            int blockW = MapOffsetToPixels(block_bytes, general->mem_size, width);
+            if (blockW < 1) blockW = 1;
 
-        int blockX = x + MapOffsetToPixels(current_offset, general->mem_size, width);
-        int blockW = MapOffsetToPixels(block_bytes, general->mem_size, width);
-        if (blockW < 1) blockW = 1;
+            Color blockColor = header->is_allocated ? LIME : MAROON;
 
-        Color blockColor = header->is_allocated ? LIME : MAROON;
+            DrawRectangle(blockX, y, blockW, height, blockColor);
+            DrawRectangleLines(blockX, y, blockW, height, BLACK);
 
-        DrawRectangle(blockX, y, blockW, height, blockColor);
-        DrawRectangleLines(blockX, y, blockW, height, BLACK);
-
-        current_offset += block_bytes;
+            current_offset += block_bytes;
+        } else {
+            keep_processing = 0;
+        }
     }
 }
 
@@ -159,20 +181,21 @@ void DrawHandleTable(int x, int y, int cell_size) {
     
     for (uint32_t i = 0; i < table->size; i++) {
         HandleEntry* entry = handle_table_get_entry_by_index(i);
-        if (!entry) continue;
+        
+        if (entry) {
+            int row = i / cols;
+            int col = i % cols;
+            int drawX = x + (col * cell_size);
+            int drawY = y + (row * cell_size);
 
-        int row = i / cols;
-        int col = i % cols;
-        int drawX = x + (col * cell_size);
-        int drawY = y + (row * cell_size);
+            Color c = DARKGRAY;
+            if (entry->is_allocated) {
+                c = ORANGE; // Live Handle
+                if (entry->is_scc_root) c = PURPLE; // Highlight SCC Roots
+            }
 
-        Color c = DARKGRAY;
-        if (entry->is_allocated) {
-            c = ORANGE; // Live Handle
-            if (entry->is_scc_root) c = PURPLE; // Highlight SCC Roots
+            DrawRectangle(drawX, drawY, cell_size - 2, cell_size - 2, c);
         }
-
-        DrawRectangle(drawX, drawY, cell_size - 2, cell_size - 2, c);
     }
 }
 

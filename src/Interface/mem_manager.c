@@ -173,7 +173,7 @@ void* mm_request_region(size_t size)
     }
     return ptr;
 }
-void* mm_resize_region(void* old_ptr, size_t old_size, size_t new_size, uint32_t max_allowed_size)
+void* mm_resize_region(void* old_ptr, uint32_t old_size, uint32_t new_size, uint32_t max_allowed_size)
 {
     if (new_size == old_size) return old_ptr;
 
@@ -214,8 +214,9 @@ int is_valid_handle(Handle h)
 void write_handle(Handle handle)
 {
     HandleEntry* entry = handle_table_get_entry(handle);
-    if(!entry)
+    if(!entry || entry->is_root)
         return;
+    entry->is_root = 1;
     entry->in_degree++;
     Handle root = get_scc_root(handle);
     HandleEntry* root_entry = handle_table_get_entry(root);
@@ -226,10 +227,11 @@ void write_handle(Handle handle)
 void clear_handle(Handle handle)
 {
     HandleEntry* entry = handle_table_get_entry(handle);
-    if(!entry) return;
+    if(!entry || !entry->is_root) return;
     
     // 1. Drop the raw incoming degree
     entry->in_degree--;
+    entry->is_root = 0;
     
     // 2. Drop the external anchor on the cluster
     Handle root = get_scc_root(handle);
