@@ -4,7 +4,7 @@
 #include "Strategies/general.h"
 
 
-int nursury_promotion(Handle handle)
+int nursery_promotion(Handle handle)
 {
     HandleEntry* entry = handle_table_get_entry(handle);
     void* ptr = NULL;

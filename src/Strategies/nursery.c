@@ -22,7 +22,7 @@ static int nursery_defrag_callback(void* arena_context, BaseHeader* header, uint
     if (!header || !header->is_allocated) return 0;
 
     if (header->custom_flags >= NURSERY_PROMOTION_GENERATION) {
-        if(nursury_promotion(header->handle))
+        if(nursery_promotion(header->handle))
         {
             return 0;
         }

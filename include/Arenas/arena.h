@@ -15,12 +15,12 @@
 #define GET_INDEX(header,mem) ((uint8_t*)(header)-(uint8_t*)(mem))
 
 typedef struct {
-    uint32_t size:28,
-             is_allocated:1,
-             before_alloc:1,
-             custom_flags:2;
+    uint32_t size:28,          /* Block size in 8-byte words (max 2GB) */
+             is_allocated:1,   /* 1 if block is in use, 0 if free */
+             before_alloc:1,   /* 1 if previous contiguous block is allocated */
+             custom_flags:2;   /* Reserved for internal GC/State markers */
              
-    Handle handle;
+    Handle handle;             /* Bitfield-based struct (Index + Generation) */
 } BaseHeader;
 
 typedef uint32_t BaseFooter;
